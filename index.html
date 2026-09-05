@@ -384,71 +384,139 @@
         </div>
     </div>
 
-    <!-- Near-Miss Incident Report Modal (5 Fields) -->
+    <!-- Near-Miss Incident Report Modal (Structured 6 Fields) -->
     <div id="nearMissModal" class="media-modal" style="display: none;">
-        <div class="media-modal-content near-miss-modal-box" style="max-width: 440px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.35);">
+        <div class="media-modal-content near-miss-modal-box" style="max-width: 520px; height: auto; max-height: 90vh; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.35);">
             <div class="media-modal-header" style="background: #fef08a; color: #854d0e; border-bottom: 2px solid #eab308; padding: 10px 16px;">
-                <h4 style="font-size: 14px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <h4 id="nearMissModalTitle" style="font-size: 14px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 6px;">
                     <i class="fa-solid fa-triangle-exclamation" style="color: #ca8a04;"></i> ヒヤリハット報告の登録
                 </h4>
                 <button id="closeNearMissModalBtn" class="modal-close-btn" style="color: #854d0e; font-size: 20px;">&times;</button>
             </div>
-            <form id="nearMissForm" style="padding: 16px;">
-                <div id="nmCoordinatesText" style="font-size: 11px; color: #475569; margin-bottom: 12px; background: #f8fafc; padding: 5px 8px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">
+            <form id="nearMissForm" style="padding: 14px 18px; overflow-y: auto; max-height: calc(90vh - 60px);">
+                <div id="nmCoordinatesText" style="font-size: 11px; color: #475569; margin-bottom: 10px; background: #f8fafc; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">
                     📍 緯度: -, 経度: -
                 </div>
 
-                <!-- 1. 発生日時 -->
-                <div class="form-group mb-2">
-                    <label for="nmDatetime" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">① 発生日時 <span style="color: #ef4444;">*</span></label>
-                    <input type="datetime-local" id="nmDatetime" class="form-control form-control-sm" required>
+                <!-- 分類① & 分類② (2カラム) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                    <div class="form-group mb-0">
+                        <label for="nmCategory1" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                            🏷️ 分類① <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select id="nmCategory1" class="form-control form-control-sm" required>
+                            <option value="伐木">伐木</option>
+                            <option value="造材">造材</option>
+                            <option value="集材">集材</option>
+                            <option value="運材">運材</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="nmCategory2" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                            ⚠️ 分類② <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select id="nmCategory2" class="form-control form-control-sm" required>
+                            <option value="墜落・転落">墜落・転落</option>
+                            <option value="転倒">転倒</option>
+                            <option value="激突">激突</option>
+                            <option value="飛来・落下">飛来・落下</option>
+                            <option value="はさまれ・巻き込まれ">はさまれ・巻き込まれ</option>
+                            <option value="切れ">切れ</option>
+                            <option value="その他">その他</option>
+                        </select>
+                    </div>
                 </div>
 
-                <!-- 2. 作業種別・危険要因 (選択式) -->
+                <!-- いつ (日付 & 時間帯 2カラム) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                    <div class="form-group mb-0">
+                        <label for="nmDate" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                            📅 いつ (発生日付) <span style="color: #ef4444;">*</span>
+                        </label>
+                        <input type="date" id="nmDate" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="nmTimeSlot" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                            🕒 時間帯 <span style="color: #ef4444;">*</span>
+                        </label>
+                        <select id="nmTimeSlot" class="form-control form-control-sm" required>
+                            <option value="08:00〜09:00">08:00〜09:00</option>
+                            <option value="09:00〜10:00" selected>09:00〜10:00</option>
+                            <option value="10:00〜11:00">10:00〜11:00</option>
+                            <option value="11:00〜12:00">11:00〜12:00</option>
+                            <option value="12:00〜13:00">12:00〜13:00</option>
+                            <option value="13:00〜14:00">13:00〜14:00</option>
+                            <option value="14:00〜15:00">14:00〜15:00</option>
+                            <option value="15:00〜16:00">15:00〜16:00</option>
+                            <option value="16:00〜17:00">16:00〜17:00</option>
+                            <option value="08:00以前（早朝）">08:00以前（早朝）</option>
+                            <option value="17:00以降（夕方・夜間）">17:00以降（夕方・夜間）</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 誰が・何が (選択式 + その他自由入力) -->
                 <div class="form-group mb-2">
-                    <label for="nmCategory" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">② 作業種別・危険要因 <span style="color: #ef4444;">*</span></label>
-                    <select id="nmCategory" class="form-control form-control-sm" required>
-                        <option value="伐木・造材作業（かかり木・跳ね返り）">伐木・造材作業（かかり木・跳ね返り）</option>
-                        <option value="伐木・造材作業（チェーンソー・キックバック）">伐木・造材作業（チェーンソー・キックバック）</option>
-                        <option value="集運材・重機走行（死角・接近）">集運材・重機走行（死角・接近）</option>
-                        <option value="車両・林道走行（路肩崩壊・落石）">車両・林道走行（路肩崩壊・落石）</option>
-                        <option value="足場・急傾斜地（滑落・転倒）">足場・急傾斜地（滑落・転倒）</option>
-                        <option value="合図・連絡・確認不備">合図・連絡・確認不備</option>
-                        <option value="その他（害虫・悪天候等）">その他（害虫・悪天候等）</option>
+                    <label for="nmWho" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                        👤 誰が・何が <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select id="nmWho" class="form-control form-control-sm" required>
+                        <option value="作業者（チェンソー）">作業者（チェンソー）</option>
+                        <option value="作業者（荷掛け）">作業者（荷掛け）</option>
+                        <option value="ラプトル">ラプトル</option>
+                        <option value="タワーヤーダ">タワーヤーダ</option>
+                        <option value="その他">その他（自由入力）</option>
                     </select>
+                    <input type="text" id="nmWhoOther" class="form-control form-control-sm" placeholder="具体的な対象を入力してください" style="display: none; margin-top: 4px;">
                 </div>
 
-                <!-- 3. 関与対象 (選択式) -->
+                <!-- 何を (選択式 + その他自由入力) -->
                 <div class="form-group mb-2">
-                    <label for="nmInvolvedTarget" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">③ 関与対象 <span style="color: #ef4444;">*</span></label>
-                    <select id="nmInvolvedTarget" class="form-control form-control-sm" required>
-                        <option value="作業員 ⇔ 重機・車両">作業員 ⇔ 重機・車両</option>
-                        <option value="作業員 ⇔ 立木・倒木">作業員 ⇔ 立木・倒木</option>
-                        <option value="作業員 ⇔ 作業員">作業員 ⇔ 作業員</option>
-                        <option value="作業員単独">作業員単独</option>
-                        <option value="重機・設備単独">重機・設備単独</option>
+                    <label for="nmWhat" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                        🎯 何を (作業内容) <span style="color: #ef4444;">*</span>
+                    </label>
+                    <select id="nmWhat" class="form-control form-control-sm" required>
+                        <option value="移動">移動</option>
+                        <option value="伐倒">伐倒</option>
+                        <option value="木寄せ">木寄せ</option>
+                        <option value="集材">集材</option>
+                        <option value="枝払い">枝払い</option>
+                        <option value="造材">造材</option>
+                        <option value="積み込み">積み込み</option>
+                        <option value="積み下ろし">積み下ろし</option>
+                        <option value="その他">その他（自由入力）</option>
                     </select>
+                    <input type="text" id="nmWhatOther" class="form-control form-control-sm" placeholder="具体的な作業内容を入力してください" style="display: none; margin-top: 4px;">
                 </div>
 
-                <!-- 4. 危険度・重要度 (選択式) -->
+                <!-- どのようにして (自由入力・任意) -->
                 <div class="form-group mb-2">
-                    <label for="nmRiskLevel" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">④ 危険度・重要度 <span style="color: #ef4444;">*</span></label>
-                    <select id="nmRiskLevel" class="form-control form-control-sm" required>
-                        <option value="軽微 [Lv.1 注意喚起]">軽微 [Lv.1 注意喚起] (黄)</option>
-                        <option value="中度 [Lv.2 重大事故の恐れ]" selected>中度 [Lv.2 重大事故の恐れ] (橙)</option>
-                        <option value="重大 [Lv.3 死亡・重傷の危険]">重大 [Lv.3 死亡・重傷の危険] (赤)</option>
-                    </select>
+                    <label for="nmHow" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                        🔍 どのようにして <span style="font-size: 10px; font-weight: normal; color: #64748b;">(任意)</span>
+                    </label>
+                    <textarea id="nmHow" class="form-control form-control-sm" rows="2" placeholder="どのような状況・原因でヒヤリ・ハットが発生したかを入力してください（任意）"></textarea>
                 </div>
 
-                <!-- 5. 状況・要因メモ (自由記述) -->
+                <!-- どうなった (自由入力・必須) -->
+                <div class="form-group mb-2">
+                    <label for="nmResult" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                        💥 どうなった <span style="color: #ef4444;">*</span>
+                    </label>
+                    <textarea id="nmResult" class="form-control form-control-sm" rows="2" placeholder="どのような状態・結果になったかを入力してください（例: 滑落しかけたが木に掴まり無傷 等）" required></textarea>
+                </div>
+
+                <!-- 対応策 (自由入力・任意) -->
                 <div class="form-group mb-3">
-                    <label for="nmDescription" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">⑤ 状況・要因メモ</label>
-                    <textarea id="nmDescription" class="form-control form-control-sm" rows="3" placeholder="ヒヤリとした具体的な状況や要因を入力してください（例: プロセッサ旋回時に合図なく死角に進入しかけた 等）"></textarea>
+                    <label for="nmCountermeasure" style="font-weight: 700; font-size: 11px; color: #334155; margin-bottom: 2px; display: block;">
+                        🛡️ 対応策 <span style="font-size: 10px; font-weight: normal; color: #64748b;">(任意)</span>
+                    </label>
+                    <textarea id="nmCountermeasure" class="form-control form-control-sm" rows="2" placeholder="今後の再発防止策・現場での改善ルールを入力してください（任意）"></textarea>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 8px;">
+                <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 10px; margin-top: 6px;">
                     <button type="button" id="cancelNearMissFormBtn" class="btn btn-outline-secondary btn-sm">キャンセル</button>
-                    <button type="submit" class="btn btn-warning btn-sm" style="font-weight: bold; background: #eab308; color: #111827; border-color: #ca8a04;">
+                    <button type="submit" id="submitNearMissFormBtn" class="btn btn-warning btn-sm" style="font-weight: bold; background: #eab308; color: #111827; border-color: #ca8a04;">
                         <i class="fa-solid fa-check"></i> 報告を登録
                     </button>
                 </div>

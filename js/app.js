@@ -1192,67 +1192,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const buildNearMissSectionHtml = () => {
                     if (nearMissItems.length === 0) return '';
-                    const lv3Count = nearMissItems.filter(r => r.riskLevel.includes('重大') || r.riskLevel.includes('Lv.3')).length;
-                    const lv2Count = nearMissItems.filter(r => r.riskLevel.includes('中度') || r.riskLevel.includes('Lv.2')).length;
-                    const lv1Count = nearMissItems.filter(r => r.riskLevel.includes('軽微') || r.riskLevel.includes('Lv.1')).length;
+                    
+                    const cat1Counts = {};
+                    nearMissItems.forEach(r => {
+                        const c = r.category1 || 'その他';
+                        cat1Counts[c] = (cat1Counts[c] || 0) + 1;
+                    });
+                    const cat1Summary = Object.entries(cat1Counts).map(([k, v]) => `${k}: <b>${v}</b>件`).join(' / ');
 
                     return `
                         ${secTitle(`⚠️ ヒヤリハット報告・危険事例一覧 (${nearMissItems.length}件)`)}
-                        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px;">
+                        <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 10px;">
                             <div class="kpi-card" style="border-left: 4px solid #eab308;">
                                 <div class="kpi-label">総報告件数</div>
                                 <div class="kpi-val">${nearMissItems.length} 件</div>
                             </div>
-                            <div class="kpi-card" style="border-left: 4px solid #ef4444;">
-                                <div class="kpi-label">🔴 重大 (Lv.3)</div>
-                                <div class="kpi-val" style="color: #dc2626;">${lv3Count} 件</div>
-                            </div>
-                            <div class="kpi-card" style="border-left: 4px solid #f97316;">
-                                <div class="kpi-label">🟠 中度 (Lv.2)</div>
-                                <div class="kpi-val" style="color: #ea580c;">${lv2Count} 件</div>
-                            </div>
-                            <div class="kpi-card" style="border-left: 4px solid #eab308;">
-                                <div class="kpi-label">🟡 軽微 (Lv.1)</div>
-                                <div class="kpi-val" style="color: #ca8a04;">${lv1Count} 件</div>
+                            <div class="kpi-card" style="border-left: 4px solid #0284c7; grid-column: span 2;">
+                                <div class="kpi-label">作業分類①別 内訳</div>
+                                <div style="font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 2px;">
+                                    ${cat1Summary}
+                                </div>
                             </div>
                         </div>
                         <table class="report-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 32px; text-align: center;">No.</th>
-                                    <th style="width: 110px;">発生日時</th>
-                                    <th style="width: 130px;">作業種別・要因</th>
-                                    <th style="width: 120px;">関与対象</th>
-                                    <th style="width: 75px; text-align: center;">危険度</th>
-                                    <th>状況・要因・対策メモ</th>
-                                    <th style="width: 105px;">発生位置 (緯度, 経度)</th>
+                                    <th style="width: 28px; text-align: center;">No.</th>
+                                    <th style="width: 100px;">いつ (日時/時間帯)</th>
+                                    <th style="width: 105px;">分類① / 分類②</th>
+                                    <th style="width: 95px;">誰が・何が</th>
+                                    <th style="width: 65px;">何を</th>
+                                    <th style="width: 130px;">どのようにして</th>
+                                    <th style="width: 120px;">どうなった</th>
+                                    <th>対応策</th>
+                                    <th style="width: 85px;">位置 (座標)</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${nearMissItems.map((r, idx) => {
-                                    let badgeBg = '#fef08a';
-                                    let badgeColor = '#854d0e';
-                                    if (r.riskLevel.includes('重大') || r.riskLevel.includes('Lv.3')) {
-                                        badgeBg = '#fee2e2';
-                                        badgeColor = '#991b1b';
-                                    } else if (r.riskLevel.includes('中度') || r.riskLevel.includes('Lv.2')) {
-                                        badgeBg = '#ffedd5';
-                                        badgeColor = '#9a3412';
-                                    }
-                                    const dtStr = r.datetime ? r.datetime.replace('T', ' ') : '-';
+                                    const c1 = r.category1 || '-';
+                                    const c2 = r.category2 || '-';
+                                    const dateStr = r.date || (r.datetime ? r.datetime.slice(0, 10) : '-');
+                                    const timeStr = r.timeSlot || (r.datetime ? r.datetime.slice(11) : '-');
+                                    const whoStr = r.who || r.involvedTarget || '-';
+                                    const whatStr = r.what || r.category || '-';
+                                    const howStr = r.how || r.description || '-';
+                                    const resultStr = r.result || '-';
+                                    const cmStr = r.countermeasure || '-';
+
                                     return `
                                         <tr>
                                             <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-                                            <td style="font-size: 11px;">${dtStr}</td>
-                                            <td><b>${r.category}</b></td>
-                                            <td>${r.involvedTarget}</td>
-                                            <td style="text-align: center;">
-                                                <span style="display: inline-block; padding: 2px 5px; font-size: 10px; font-weight: bold; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor};">
-                                                    ${r.riskLevel}
-                                                </span>
+                                            <td style="font-size: 10.5px;">${dateStr}<br><span style="color:#64748b;">${timeStr}</span></td>
+                                            <td style="font-size: 11px;">
+                                                <span style="font-weight: bold; color: #0369a1;">[${c1}]</span><br>
+                                                <span style="color: #334155;">${c2}</span>
                                             </td>
-                                            <td style="white-space: pre-wrap; font-size: 11px;">${r.description || '-'}</td>
-                                            <td style="font-size: 10px; color: #64748b;">${r.lat.toFixed(5)}, ${r.lon.toFixed(5)}</td>
+                                            <td style="font-size: 11px; font-weight: 600; color: #0f172a;">${whoStr}</td>
+                                            <td style="font-size: 11px; font-weight: 600; color: #0f172a;">${whatStr}</td>
+                                            <td style="font-size: 10.5px; color: #334155; white-space: pre-wrap;">${howStr}</td>
+                                            <td style="font-size: 10.5px; color: #991b1b; white-space: pre-wrap;">${resultStr}</td>
+                                            <td style="font-size: 10.5px; color: #166534; white-space: pre-wrap;">${cmStr}</td>
+                                            <td style="font-size: 9.5px; color: #64748b; font-family: monospace;">${r.lat.toFixed(5)},<br>${r.lon.toFixed(5)}</td>
                                         </tr>
                                     `;
                                 }).join('')}

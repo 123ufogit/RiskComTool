@@ -1,10 +1,20 @@
 /**
  * Near-Miss (ヒヤリハット) Incident Reporting & GeoJSON Manager
+ * 項目構成:
+ * - 分類①: 伐木 / 造材 / 集材 / 運材 / その他
+ * - 分類②: 墜落・転落 / 転倒 / 激突 / 飛来・落下 / はさまれ・巻き込まれ / 切れ / その他
+ * - いつ: 発生日付 (date) + 時間帯 (timeSlot)
+ * - 誰が・何が (who): 作業者（チェンソー） / 作業者（荷掛け） / ラプトル / タワーヤーダ / その他（自由入力）
+ * - 何を (what): 移動 / 伐倒 / 木寄せ / 集材 / 枝払い / 造材 / 積み込み / 積み下ろし / その他（自由入力）
+ * - どのようにして (how): 自由入力
+ * - どうなった (result): 自由入力
+ * - 対応策 (countermeasure): 自由入力
  */
 const NearMissManager = {
     map: null,
     layerGroup: null,
     reports: [],
+    editingReportId: null,
     isPinMode: false,
     tempLatLng: null,
     tempMarker: null,
@@ -74,6 +84,39 @@ const NearMissManager = {
             }
         });
 
+        // Toggle "Other" text fields
+        const whoSelect = document.getElementById('nmWho');
+        const whoOtherInput = document.getElementById('nmWhoOther');
+        if (whoSelect && whoOtherInput) {
+            whoSelect.addEventListener('change', () => {
+                if (whoSelect.value === 'その他') {
+                    whoOtherInput.style.display = 'block';
+                    whoOtherInput.required = true;
+                    whoOtherInput.focus();
+                } else {
+                    whoOtherInput.style.display = 'none';
+                    whoOtherInput.required = false;
+                    whoOtherInput.value = '';
+                }
+            });
+        }
+
+        const whatSelect = document.getElementById('nmWhat');
+        const whatOtherInput = document.getElementById('nmWhatOther');
+        if (whatSelect && whatOtherInput) {
+            whatSelect.addEventListener('change', () => {
+                if (whatSelect.value === 'その他') {
+                    whatOtherInput.style.display = 'block';
+                    whatOtherInput.required = true;
+                    whatOtherInput.focus();
+                } else {
+                    whatOtherInput.style.display = 'none';
+                    whatOtherInput.required = false;
+                    whatOtherInput.value = '';
+                }
+            });
+        }
+
         // Form submit in Modal
         const form = document.getElementById('nearMissForm');
         if (form) {
@@ -110,6 +153,7 @@ const NearMissManager = {
      * Start Pin Placement Mode
      */
     startPinMode: function() {
+        this.editingReportId = null;
         this.isPinMode = true;
         const mapEl = this.map.getContainer();
         mapEl.classList.add('pin-placement-mode');
@@ -156,38 +200,158 @@ const NearMissManager = {
             icon: this.createWarningIcon('#ef4444', true)
         }).addTo(this.map);
 
-        this.openModal(latlng);
+        this.openModal(latlng, null);
     },
 
     /**
-     * Open Report Form Modal
+     * Open Report Form Modal (for creation or editing)
      */
-    openModal: function(latlng) {
+    openModal: function(latlng, reportToEdit = null) {
         if (!this.modalEl) return;
 
-        // Reset form
+        const modalTitleEl = document.getElementById('nearMissModalTitle');
+        const submitBtnEl = document.getElementById('submitNearMissFormBtn');
         const form = document.getElementById('nearMissForm');
         if (form) form.reset();
 
-        // Default datetime: now formatted as YYYY-MM-DDTHH:MM
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const min = String(now.getMinutes()).padStart(2, '0');
-        const defaultDatetime = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+        const whoOtherInput = document.getElementById('nmWhoOther');
+        const whatOtherInput = document.getElementById('nmWhatOther');
+        const whoSelect = document.getElementById('nmWho');
+        const whatSelect = document.getElementById('nmWhat');
 
-        const dtInput = document.getElementById('nmDatetime');
-        if (dtInput) dtInput.value = defaultDatetime;
+        if (reportToEdit) {
+            // Edit Mode
+            this.editingReportId = reportToEdit.id;
+            this.tempLatLng = { lat: reportToEdit.lat, lng: reportToEdit.lon };
 
-        // Display coordinate info
-        const coordInfoEl = document.getElementById('nmCoordinatesText');
-        if (coordInfoEl) {
-            coordInfoEl.textContent = `📍 緯度: ${latlng.lat.toFixed(6)}, 経度: ${latlng.lng.toFixed(6)}`;
+            if (modalTitleEl) {
+                modalTitleEl.innerHTML = '<i class="fa-solid fa-pen-to-square" style="color: #ca8a04;"></i> ヒヤリハット報告の編集';
+            }
+            if (submitBtnEl) {
+                submitBtnEl.innerHTML = '<i class="fa-solid fa-save"></i> 変更を更新';
+            }
+
+            document.getElementById('nmCategory1').value = reportToEdit.category1 || '伐木';
+            document.getElementById('nmCategory2').value = reportToEdit.category2 || '墜落・転落';
+            document.getElementById('nmDate').value = reportToEdit.date || '';
+            document.getElementById('nmTimeSlot').value = reportToEdit.timeSlot || '09:00〜10:00';
+
+            // Check if who is standard option
+            let whoMatched = false;
+            if (whoSelect) {
+                for (let opt of whoSelect.options) {
+                    if (opt.value === reportToEdit.who) {
+                        whoSelect.value = reportToEdit.who;
+                        whoMatched = true;
+                        break;
+                    }
+                }
+                if (!whoMatched) {
+                    whoSelect.value = 'その他';
+                    if (whoOtherInput) {
+                        whoOtherInput.style.display = 'block';
+                        whoOtherInput.required = true;
+                        whoOtherInput.value = reportToEdit.who || '';
+                    }
+                } else if (whoOtherInput) {
+                    whoOtherInput.style.display = 'none';
+                    whoOtherInput.required = false;
+                }
+            }
+
+            // Check if what is standard option
+            let whatMatched = false;
+            if (whatSelect) {
+                for (let opt of whatSelect.options) {
+                    if (opt.value === reportToEdit.what) {
+                        whatSelect.value = reportToEdit.what;
+                        whatMatched = true;
+                        break;
+                    }
+                }
+                if (!whatMatched) {
+                    whatSelect.value = 'その他';
+                    if (whatOtherInput) {
+                        whatOtherInput.style.display = 'block';
+                        whatOtherInput.required = true;
+                        whatOtherInput.value = reportToEdit.what || '';
+                    }
+                } else if (whatOtherInput) {
+                    whatOtherInput.style.display = 'none';
+                    whatOtherInput.required = false;
+                }
+            }
+
+            document.getElementById('nmHow').value = reportToEdit.how || '';
+            document.getElementById('nmResult').value = reportToEdit.result || '';
+            document.getElementById('nmCountermeasure').value = reportToEdit.countermeasure || '';
+
+            const coordInfoEl = document.getElementById('nmCoordinatesText');
+            if (coordInfoEl) {
+                coordInfoEl.textContent = `📍 緯度: ${reportToEdit.lat.toFixed(6)}, 経度: ${reportToEdit.lon.toFixed(6)}`;
+            }
+        } else {
+            // New Registration Mode
+            this.editingReportId = null;
+
+            if (modalTitleEl) {
+                modalTitleEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color: #ca8a04;"></i> ヒヤリハット報告の登録';
+            }
+            if (submitBtnEl) {
+                submitBtnEl.innerHTML = '<i class="fa-solid fa-check"></i> 報告を登録';
+            }
+
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const dateInput = document.getElementById('nmDate');
+            if (dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+            const curHour = now.getHours();
+            const timeSlotSelect = document.getElementById('nmTimeSlot');
+            if (timeSlotSelect) {
+                if (curHour < 8) timeSlotSelect.value = '08:00以前（早朝）';
+                else if (curHour >= 17) timeSlotSelect.value = '17:00以降（夕方・夜間）';
+                else {
+                    const startH = String(curHour).padStart(2, '0');
+                    const endH = String(curHour + 1).padStart(2, '0');
+                    const targetSlot = `${startH}:00〜${endH}:00`;
+                    for (let opt of timeSlotSelect.options) {
+                        if (opt.value === targetSlot) {
+                            timeSlotSelect.value = targetSlot;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (whoOtherInput) {
+                whoOtherInput.style.display = 'none';
+                whoOtherInput.required = false;
+            }
+            if (whatOtherInput) {
+                whatOtherInput.style.display = 'none';
+                whatOtherInput.required = false;
+            }
+
+            const coordInfoEl = document.getElementById('nmCoordinatesText');
+            if (coordInfoEl && latlng) {
+                coordInfoEl.textContent = `📍 緯度: ${latlng.lat.toFixed(6)}, 経度: ${latlng.lng.toFixed(6)}`;
+            }
         }
 
         this.modalEl.style.display = 'flex';
+    },
+
+    /**
+     * Edit an existing report by ID
+     */
+    editReport: function(id) {
+        const report = this.reports.find(r => r.id === id);
+        if (!report) return;
+
+        this.openModal({ lat: report.lat, lng: report.lon }, report);
     },
 
     /**
@@ -195,41 +359,91 @@ const NearMissManager = {
      */
     closeModal: function() {
         if (this.modalEl) this.modalEl.style.display = 'none';
+        this.editingReportId = null;
         this.cancelPinMode();
     },
 
     /**
-     * Handle Form Submission
+     * Handle Form Submission (Create or Update)
      */
     handleFormSubmit: function() {
         if (!this.tempLatLng) {
-            alert('位置情報が取得できませんでした。再度ピンを配置してください。');
+            alert('位置情報が取得できませんでした。');
             return;
         }
 
-        const datetime = document.getElementById('nmDatetime').value || new Date().toISOString();
-        const category = document.getElementById('nmCategory').value;
-        const involvedTarget = document.getElementById('nmInvolvedTarget').value;
-        const riskLevel = document.getElementById('nmRiskLevel').value;
-        const description = document.getElementById('nmDescription').value.trim() || '特記事項なし';
+        const category1 = document.getElementById('nmCategory1').value;
+        const category2 = document.getElementById('nmCategory2').value;
+        const date = document.getElementById('nmDate').value || new Date().toISOString().slice(0, 10);
+        const timeSlot = document.getElementById('nmTimeSlot').value;
 
-        const newReport = {
-            id: 'nm_' + Date.now(),
-            lat: this.tempLatLng.lat,
-            lon: this.tempLatLng.lng,
-            datetime: datetime,
-            category: category,
-            involvedTarget: involvedTarget,
-            riskLevel: riskLevel,
-            description: description,
-            createdAt: new Date().toISOString()
-        };
+        const whoSelect = document.getElementById('nmWho').value;
+        const whoOther = document.getElementById('nmWhoOther').value.trim();
+        const who = (whoSelect === 'その他') ? (whoOther || 'その他') : whoSelect;
 
-        this.reports.push(newReport);
-        this.addReportMarker(newReport);
+        const whatSelect = document.getElementById('nmWhat').value;
+        const whatOther = document.getElementById('nmWhatOther').value.trim();
+        const what = (whatSelect === 'その他') ? (whatOther || 'その他') : whatSelect;
+
+        const how = document.getElementById('nmHow').value.trim();
+        const result = document.getElementById('nmResult').value.trim();
+        const countermeasure = document.getElementById('nmCountermeasure').value.trim();
+
+        if (this.editingReportId) {
+            // Update existing report
+            const report = this.reports.find(r => r.id === this.editingReportId);
+            if (report) {
+                report.category1 = category1;
+                report.category2 = category2;
+                report.date = date;
+                report.timeSlot = timeSlot;
+                report.who = who;
+                report.what = what;
+                report.how = how;
+                report.result = result;
+                report.countermeasure = countermeasure;
+                report.updatedAt = new Date().toISOString();
+
+                // Update marker on map
+                this.updateReportMarker(report);
+            }
+        } else {
+            // Create new report
+            const newReport = {
+                id: 'nm_' + Date.now(),
+                lat: this.tempLatLng.lat,
+                lon: this.tempLatLng.lng,
+                category1: category1,
+                category2: category2,
+                date: date,
+                timeSlot: timeSlot,
+                who: who,
+                what: what,
+                how: how,
+                result: result,
+                countermeasure: countermeasure,
+                createdAt: new Date().toISOString()
+            };
+
+            this.reports.push(newReport);
+            this.addReportMarker(newReport);
+        }
+
         this.renderList();
-
         this.closeModal();
+    },
+
+    /**
+     * Get Color for Category1
+     */
+    getCategoryColor: function(cat1) {
+        switch (cat1) {
+            case '伐木': return '#ef4444'; // 赤
+            case '造材': return '#0284c7'; // 青
+            case '集材': return '#8b5cf6'; // 紫
+            case '運材': return '#16a34a'; // 緑
+            default: return '#f59e0b';     // アンバー/黄
+        }
     },
 
     /**
@@ -255,56 +469,86 @@ const NearMissManager = {
     },
 
     /**
+     * Build Popup HTML for a report
+     */
+    buildPopupHtml: function(report) {
+        const pinColor = this.getCategoryColor(report.category1);
+
+        return `
+            <div class="near-miss-popup" style="font-size:12px; line-height:1.45; min-width:270px; max-width:320px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid ${pinColor}; padding-bottom:4px; margin-bottom:6px;">
+                    <b style="font-size:13px; color:#111827;"><i class="fa-solid fa-triangle-exclamation" style="color:${pinColor};"></i> ヒヤリハット報告</b>
+                    <span style="font-size:10px; font-weight:bold; background:#f1f5f9; color:#0f172a; border:1px solid #cbd5e1; padding:1px 6px; border-radius:4px;">
+                        [${report.category1}] ${report.category2}
+                    </span>
+                </div>
+                <div style="margin-bottom:3px;">📅 <b>いつ:</b> ${report.date} (${report.timeSlot})</div>
+                <div style="margin-bottom:3px;">👤 <b>誰が・何が:</b> <span style="font-weight:700; color:#0f172a;">${report.who}</span></div>
+                <div style="margin-bottom:5px;">🎯 <b>何を:</b> <span style="font-weight:700; color:#0f172a;">${report.what}</span></div>
+                
+                <div style="background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0; margin-bottom:5px;">
+                    ${report.how ? `
+                    <div style="margin-bottom:4px;">
+                        <b style="color:#475569;">🔍 どのようにして:</b><br>
+                        <span style="color:#1e293b; white-space:pre-wrap;">${report.how}</span>
+                    </div>` : ''}
+                    <div style="margin-bottom:4px; color:#b91c1c;">
+                        <b style="color:#dc2626;">💥 どうなった:</b><br>
+                        <span style="color:#991b1b; white-space:pre-wrap;">${report.result || '-'}</span>
+                    </div>
+                    ${report.countermeasure ? `
+                    <div style="border-top:1px dashed #cbd5e1; padding-top:4px; margin-top:4px;">
+                        <b style="color:#15803d;">🛡️ 対応策:</b><br>
+                        <span style="color:#166534; white-space:pre-wrap;">${report.countermeasure}</span>
+                    </div>` : ''}
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:10px; color:#64748b; border-top:1px dashed #cbd5e1; padding-top:4px;">
+                    <span>📍 ${report.lat.toFixed(5)}, ${report.lon.toFixed(5)}</span>
+                    <div>
+                        <button onclick="NearMissManager.editReport('${report.id}')" class="btn btn-outline-primary btn-xs" style="padding:1px 6px; font-size:10px; margin-right:4px;" title="この報告を編集">
+                            <i class="fa-solid fa-pen-to-square"></i> 編集
+                        </button>
+                        <button onclick="NearMissManager.deleteReport('${report.id}')" class="btn btn-outline-danger btn-xs" style="padding:1px 6px; font-size:10px;" title="この報告を削除">
+                            <i class="fa-solid fa-trash"></i> 削除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    /**
      * Add Report Marker to Leaflet LayerGroup
      */
     addReportMarker: function(report) {
-        let pinColor = '#facc15'; // Default Level 1 (Yellow)
-        let riskBadgeBg = '#fef08a';
-        let riskBadgeColor = '#854d0e';
-        
-        if (report.riskLevel.includes('重大') || report.riskLevel.includes('Lv.3')) {
-            pinColor = '#ef4444'; // Level 3 (Red)
-            riskBadgeBg = '#fee2e2';
-            riskBadgeColor = '#991b1b';
-        } else if (report.riskLevel.includes('中度') || report.riskLevel.includes('Lv.2')) {
-            pinColor = '#f97316'; // Level 2 (Orange)
-            riskBadgeBg = '#ffedd5';
-            riskBadgeColor = '#9a3412';
-        }
+        const pinColor = this.getCategoryColor(report.category1);
 
         const marker = L.marker([report.lat, report.lon], {
             icon: this.createWarningIcon(pinColor, false)
         });
 
-        const formattedDate = report.datetime ? report.datetime.replace('T', ' ') : '-';
-
-        const popupHtml = `
-            <div class="near-miss-popup" style="font-size:12px; line-height:1.45; min-width:240px; max-width:280px;">
-                <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid ${pinColor}; padding-bottom:4px; margin-bottom:6px;">
-                    <b style="font-size:13px; color:#111827;"><i class="fa-solid fa-triangle-exclamation" style="color:${pinColor};"></i> ヒヤリハット報告</b>
-                    <span style="font-size:10px; font-weight:bold; background:${riskBadgeBg}; color:${riskBadgeColor}; padding:1px 6px; border-radius:4px;">${report.riskLevel}</span>
-                </div>
-                <div style="margin-bottom:4px;">📅 <b>日時:</b> ${formattedDate}</div>
-                <div style="margin-bottom:4px;">⚙️ <b>作業種別:</b> <span style="font-weight:600; color:#0f172a;">${report.category}</span></div>
-                <div style="margin-bottom:4px;">👥 <b>関与対象:</b> ${report.involvedTarget}</div>
-                <div style="margin-bottom:6px; background:#f8fafc; padding:6px 8px; border-radius:4px; border:1px solid #e2e8f0;">
-                    <b>💬 状況・要因:</b><br>
-                    <span style="color:#334155; white-space:pre-wrap;">${report.description}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:10px; color:#64748b; border-top:1px dashed #cbd5e1; padding-top:4px;">
-                    <span>📍 ${report.lat.toFixed(5)}, ${report.lon.toFixed(5)}</span>
-                    <button onclick="NearMissManager.deleteReport('${report.id}')" class="btn btn-outline-danger btn-xs" style="padding:1px 5px; font-size:10px;" title="この報告を削除">
-                        <i class="fa-solid fa-trash"></i> 削除
-                    </button>
-                </div>
-            </div>
-        `;
-
-        marker.bindPopup(popupHtml);
-        marker.bindTooltip(`⚠️ ヒヤリハット: ${report.category} (${report.riskLevel})`, { sticky: true });
+        marker.bindPopup(this.buildPopupHtml(report));
+        marker.bindTooltip(`⚠️ [${report.category1}/${report.category2}] ${report.who} (${report.what})`, { sticky: true });
 
         marker.reportId = report.id;
         marker.addTo(this.layerGroup);
+    },
+
+    /**
+     * Update existing Report Marker on Leaflet map
+     */
+    updateReportMarker: function(report) {
+        const pinColor = this.getCategoryColor(report.category1);
+
+        this.layerGroup.eachLayer(layer => {
+            if (layer.reportId === report.id) {
+                layer.setIcon(this.createWarningIcon(pinColor, false));
+                layer.setPopupContent(this.buildPopupHtml(report));
+                layer.unbindTooltip();
+                layer.bindTooltip(`⚠️ [${report.category1}/${report.category2}] ${report.who} (${report.what})`, { sticky: true });
+            }
+        });
     },
 
     /**
@@ -322,39 +566,33 @@ const NearMissManager = {
             return;
         }
 
-        this.listContainerEl.innerHTML = this.reports.map((r, idx) => {
-            let badgeBg = '#fef08a';
-            let badgeColor = '#854d0e';
-            let iconColor = '#ca8a04';
-            if (r.riskLevel.includes('重大') || r.riskLevel.includes('Lv.3')) {
-                badgeBg = '#fee2e2';
-                badgeColor = '#991b1b';
-                iconColor = '#dc2626';
-            } else if (r.riskLevel.includes('中度') || r.riskLevel.includes('Lv.2')) {
-                badgeBg = '#ffedd5';
-                badgeColor = '#9a3412';
-                iconColor = '#ea580c';
-            }
-
-            const timeStr = r.datetime ? (r.datetime.includes('T') ? r.datetime.split('T')[1] : r.datetime) : '';
+        this.listContainerEl.innerHTML = this.reports.map((r) => {
+            const iconColor = this.getCategoryColor(r.category1);
+            const detailText = r.how ? `🔍 ${r.how}` : `💥 ${r.result}`;
 
             return `
-                <div class="layer-item" style="padding: 4px 6px; cursor: pointer;" onclick="NearMissManager.zoomToReport('${r.id}')">
+                <div class="layer-item" style="padding: 5px 6px; cursor: pointer;" onclick="NearMissManager.zoomToReport('${r.id}')">
                     <div class="layer-info" style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:4px; margin-bottom:2px;">
                             <i class="fa-solid fa-triangle-exclamation" style="color:${iconColor}; font-size:11px;"></i>
                             <span style="font-size:11px; font-weight:700; color:#1e293b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                ${r.category}
+                                [${r.category1}] ${r.category2}
                             </span>
-                            <span style="font-size:9px; font-weight:bold; background:${badgeBg}; color:${badgeColor}; padding:0 4px; border-radius:3px; margin-left:auto;">
-                                ${r.riskLevel.split(' ')[0]}
+                            <span style="font-size:9px; font-weight:bold; background:#f1f5f9; color:#475569; padding:0 4px; border-radius:3px; margin-left:auto; border:1px solid #e2e8f0;">
+                                ${r.who.split('（')[0]}
                             </span>
+                        </div>
+                        <div style="font-size:10px; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-bottom:1px;">
+                            🕒 ${r.date} ${r.timeSlot} | 🎯 ${r.what}
                         </div>
                         <div style="font-size:10px; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                            🕒 ${timeStr} | ${r.description}
+                            ${detailText}
                         </div>
                     </div>
-                    <div class="layer-controls" style="margin-left:4px;">
+                    <div class="layer-controls" style="margin-left:4px; display:flex; align-items:center;">
+                        <button class="layer-action-btn" style="color:#0284c7; padding:2px 4px; margin-right:2px;" onclick="event.stopPropagation(); NearMissManager.editReport('${r.id}')" title="編集">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
                         <button class="layer-action-btn" style="color:#ef4444; padding:2px 4px;" onclick="event.stopPropagation(); NearMissManager.deleteReport('${r.id}')" title="削除">
                             <i class="fa-solid fa-trash"></i>
                         </button>
@@ -416,12 +654,17 @@ const NearMissManager = {
             },
             properties: {
                 type: 'NearMissHazard',
-                datetime: r.datetime,
-                category: r.category,
-                involvedTarget: r.involvedTarget,
-                riskLevel: r.riskLevel,
-                description: r.description,
-                createdAt: r.createdAt
+                category1: r.category1,
+                category2: r.category2,
+                date: r.date,
+                timeSlot: r.timeSlot,
+                who: r.who,
+                what: r.what,
+                how: r.how,
+                result: r.result,
+                countermeasure: r.countermeasure,
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt || null
             }
         }));
 
@@ -462,34 +705,46 @@ const NearMissManager = {
                 id: 'nm_sample_1',
                 lat: baseLat + 0.0007,
                 lon: baseLon + 0.0004,
-                datetime: '2026-05-18T09:42',
-                category: '集運材・重機走行（死角・接近）',
-                involvedTarget: '作業員 ⇔ 重機・車両',
-                riskLevel: '中度 [Lv.2 重大事故の恐れ]',
-                description: 'プロセッサ旋回時に合図不十分で後方死角に作業員が接近しそうになった。',
+                category1: '集材',
+                category2: 'はさまれ・巻き込まれ',
+                date: '2026-05-18',
+                timeSlot: '09:00〜10:00',
+                who: '作業者（荷掛け）',
+                what: '木寄せ',
+                how: 'タワーヤーダによる集材木寄せ作業中、合図と同時に荷掛け側ワイヤーが急激に跳ね上がり、',
+                result: '作業者の足元かすめてワイヤーが通過。直前に退避動作を取り接触・怪我は免れた。',
+                countermeasure: '集材木寄せ時は荷掛け位置から樹高の2倍以上の安全退避距離を確保し、無線合図の復唱を徹底する。',
                 createdAt: '2026-05-18T09:45:00Z'
             },
             {
                 id: 'nm_sample_2',
                 lat: baseLat + 0.0013,
                 lon: baseLon + 0.0009,
-                datetime: '2026-05-18T10:18',
-                category: '伐木・造材作業（かかり木・跳ね返り）',
-                involvedTarget: '作業員 ⇔ 立木・倒木',
-                riskLevel: '重大 [Lv.3 死亡・重傷の危険]',
-                description: '伐倒時に隣接木にかかり木となり、元玉外し作業中に急激に滑落・跳ね返りが発生。',
+                category1: '伐木',
+                category2: '飛来・落下',
+                date: '2026-05-18',
+                timeSlot: '10:00〜11:00',
+                who: '作業者（チェンソー）',
+                what: '伐倒',
+                how: '直径38cmのスギ立木をチェンソーで伐倒中、隣接木の上部から枯れ枝（直径約8cm・長さ約1.5m）が折れて落下。',
+                result: '作業者のヘルメットのつばをかすめて足元に落下。作業者に負傷なし。',
+                countermeasure: '伐倒作業前に必ず樹冠・上空の枯れ枝・つる絡みを360度点検し、退避場所の刈り払いとヘルメットあご紐締結を励行する。',
                 createdAt: '2026-05-18T10:20:00Z'
             },
             {
                 id: 'nm_sample_3',
                 lat: baseLat - 0.0005,
                 lon: baseLon - 0.0002,
-                datetime: '2026-05-18T10:55',
-                category: '足場・急傾斜地（滑落・転倒）',
-                involvedTarget: '作業員単独',
-                riskLevel: '軽微 [Lv.1 注意喚起]',
-                description: '急傾斜の表土崩れ箇所で足を取られ転倒。下方の集材路へ滑落しかけた。',
-                createdAt: '2026-05-18T11:00:00Z'
+                category1: '運材',
+                category2: '転倒',
+                date: '2026-05-18',
+                timeSlot: '13:00〜14:00',
+                who: 'ラプトル',
+                what: '積み込み',
+                how: '作業道肩の軟弱地盤上で長尺丸太をグラップルで掴み旋回させた際、',
+                result: '谷側の履帯が土砂沈下して車体が25度傾斜。咄嗟にグラップルを接地させて転倒を回避した。',
+                countermeasure: '積込位置の路肩地盤耐力を事前確認し、排土板・アタッチメントの接地と旋回速度の抑制を義務付ける。',
+                createdAt: '2026-05-18T13:30:00Z'
             }
         ];
 
