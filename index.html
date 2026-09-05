@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>林業GPX解析・離隔距離計測システム (Leaflet版)</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <!-- Pannellum (360 Photo Viewer) CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Exif.js (Image GPS Metadata Parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.js"></script>
+    <!-- Pannellum (360 Photo Viewer) JS -->
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    
+    <!-- GeoTIFF & Raster Support -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff"></script>
+    <script src="https://unpkg.com/georaster"></script>
+    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <!-- toGeoJSON (KML Parser) -->
+    <script src="https://unpkg.com/@tmcw/togeojson"></script>
+    <!-- html2canvas (Map snapshot export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 1. Left: Sidebar (Collapsible & Resizable) -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-tree"></i> 林業GPX-GIS</h2>
+                <p class="subtitle">ログの表示、接近アラート分析、現地メディアの位置確認用</p>
+                <button id="toggleSidebarBtn" class="collapse-btn sidebar-collapse-btn" title="サイドバーを折りたたむ">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            </div>
+
+            <!-- Sidebar Scrollable Content -->
+            <div class="sidebar-content">
+                <!-- Dropzone & File List -->
+                <section class="panel-section">
+                    <h3><i class="fa-solid fa-file-arrow-up"></i> ファイル読み込み</h3>
+                    <div id="dropzone" class="dropzone">
+                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                        <p>GPX, JPG(位置情報/360度), KML, GeoJSON, GeoTIFF, HPR を<br>ドラッグ＆ドロップまたは <span>選択</span></p>
+                        <input type="file" id="fileInput" multiple accept=".gpx,.jpg,.jpeg,.png,.heic,.mp4,.mov,.webm,.kml,.geojson,.json,.tif,.tiff,.hpr" style="display: none;">
+                    </div>
+                    <div class="sample-btn-container">
+                        <button id="loadSampleBtn" class="btn btn-secondary btn-sm" title="林業現場シナリオデータを読み込み"><i class="fa-solid fa-vial"></i> サンプルデータ読込</button>
+                        <button id="clearAllBtn" class="btn btn-outline-danger btn-sm" title="すべてクリア"><i class="fa-solid fa-trash"></i> 全消去</button>
+                    </div>
+
+                    <div class="file-list-header">
+                        <h4>読み込み済みGPX (<span id="fileCount">0</span>)</h4>
+                        <button id="mergeGpxBtn" class="btn btn-success btn-xs" title="読み込んだ全GPXを1つにまとめてダウンロード" disabled>
+                            <i class="fa-solid fa-code-merge"></i> 全GPXを結合出力
+                        </button>
+                    </div>
+                    <div id="fileList" class="file-list">
+                        <p class="empty-msg">GPXファイルが読み込まれていません</p>
+                    </div>
+
+                    <!-- Media Files List -->
+                    <div class="file-list-header" style="margin-top: 8px;">
+                        <h4>現地メディア (<span id="mediaCount">0</span>)</h4>
+                    </div>
+                    <div id="mediaFileList" class="file-list" style="max-height: 80px;">
+                        <p class="empty-msg">写真・動画が読み込まれていません</p>
+                    </div>
+
+                    <!-- Polygon & GeoTIFF List -->
+                    <div class="file-list-header" style="margin-top: 8px;">
+                        <h4>林班 / オルソ等 (<span id="gisLayerCount">0</span>)</h4>
+                    </div>
+                    <div id="gisLayerFileList" class="file-list" style="max-height: 80px;">
+                        <p class="empty-msg">KML/GeoJSON/GeoTIFF未読込</p>
+                    </div>
+
+                    <!-- Near-Miss (ヒヤリハット) Reports List -->
+                    <div class="file-list-header" style="margin-top: 8px;">
+                        <h4>ヒヤリハット報告 (<span id="nearMissCount">0</span>)</h4>
+                        <button id="exportNearMissGeoJsonBtn" class="btn btn-warning btn-xs" title="ヒヤリハット報告をGeoJSONとして一括出力" disabled>
+                            <i class="fa-solid fa-file-export"></i> GeoJSON出力
+                        </button>
+                    </div>
+                    <div id="nearMissFileList" class="file-list" style="max-height: 80px;">
+                        <p class="empty-msg">ヒヤリハット報告なし</p>
+                    </div>
+                </section>
+
+                <!-- GIS Polygon & GeoTIFF List with Integrated Opacity & Visibility -->
+                <!-- Opacity sliders are shown inside the layer items dynamically -->
+
+                <!-- Sidebar Analysis Sub-Tabs -->
+                <div class="sidebar-tabs-bar">
+                    <button class="sidebar-tab-btn active" data-sidebar-tab="sidebarStatsTab">
+                        <i class="fa-solid fa-chart-pie"></i> 距離・高度
+                    </button>
+                    <button class="sidebar-tab-btn" data-sidebar-tab="sidebarAlertTab">
+                        <i class="fa-solid fa-triangle-exclamation"></i> 接近・アラート解析
+                    </button>
+                </div>
+
+                <!-- Sidebar Tab 1: GPX Stats & Elevation -->
+                <div id="sidebarStatsTab" class="sidebar-tab-pane active">
+                    <section class="panel-section">
+                        <p class="section-desc">2つのGPXを選択して、移動距離・標高プロファイルを並べて比較できます。</p>
+                        
+                        <div class="gpx-select-boxes">
+                            <div class="form-group mb-1">
+                                <label for="targetGpxSelect1"><b>GPX 1 (基準):</b></label>
+                                <select id="targetGpxSelect1" class="form-control" disabled>
+                                    <option value="">GPX 1 を選択</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-2">
+                                <label for="targetGpxSelect2"><b>GPX 2 (比較・任意):</b></label>
+                                <select id="targetGpxSelect2" class="form-control" disabled>
+                                    <option value="">(なし / 1つのみ分析)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="statsSummary" class="stats-summary-card">
+                            <div class="stat-compare-header">
+                                <span class="stat-col-title">項目</span>
+                                <span id="statHeaderGpx1" class="stat-col-title text-primary">GPX 1</span>
+                                <span id="statHeaderGpx2" class="stat-col-title text-danger" style="display:none;">GPX 2</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">総水平距離:</span>
+                                <span id="totalHorizontalDist1" class="stat-val">-</span>
+                                <span id="totalHorizontalDist2" class="stat-val stat-val-2" style="display:none;">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">上昇/下降:</span>
+                                <span id="totalVerticalDist1" class="stat-val">-</span>
+                                <span id="totalVerticalDist2" class="stat-val stat-val-2" style="display:none;">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">平均移動:</span>
+                                <span id="avgHourlyDist1" class="stat-val">-</span>
+                                <span id="avgHourlyDist2" class="stat-val stat-val-2" style="display:none;">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">標高（最低～最高）:</span>
+                                <span id="elevRange1" class="stat-val">-</span>
+                                <span id="elevRange2" class="stat-val stat-val-2" style="display:none;">-</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">標高差:</span>
+                                <span id="elevDiff1" class="stat-val">-</span>
+                                <span id="elevDiff2" class="stat-val stat-val-2" style="display:none;">-</span>
+                            </div>
+                        </div>
+
+                        <div class="table-actions">
+                            <button id="exportStatsTextBtn" class="btn btn-outline-primary btn-sm" disabled>
+                                <i class="fa-solid fa-file-lines"></i> 統計テキスト出力 (機能4)
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Sidebar Tab 2: Proximity & Safety Alert Analysis -->
+                <div id="sidebarAlertTab" class="sidebar-tab-pane">
+                    <section class="panel-section">
+                        <!-- Active GPX Comparison Banner -->
+                        <div id="alertGpxBanner" class="alert-gpx-banner">
+                            <div class="banner-title"><i class="fa-solid fa-circle-info"></i> <b>解析対象ペア:</b></div>
+                            <div id="alertGpxNamesText" class="banner-names text-primary">移動統計で2つのGPXを選択してください</div>
+                        </div>
+
+                        <div id="alertControlsWrapper">
+                            <div class="form-row" style="display: flex; gap: 6px; margin-bottom: 6px;">
+                                <div class="form-group mb-1" style="flex: 1;">
+                                    <label for="alertStartTime">開始:</label>
+                                    <input type="time" id="alertStartTime" class="form-control form-control-sm" value="09:00">
+                                </div>
+                                <div class="form-group mb-1" style="flex: 1;">
+                                    <label for="alertEndTime">終了:</label>
+                                    <input type="time" id="alertEndTime" class="form-control form-control-sm" value="11:00">
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="display: flex; gap: 6px; margin-bottom: 8px;">
+                                <div class="form-group mb-1" style="flex: 1.1;">
+                                    <label for="alertIntervalSelect">間隔:</label>
+                                    <select id="alertIntervalSelect" class="form-control form-control-sm">
+                                        <option value="0.5">30秒毎</option>
+                                        <option value="1" selected>1分毎 (標準)</option>
+                                        <option value="3">3分毎</option>
+                                        <option value="5">5分毎</option>
+                                        <option value="10">10分毎</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-1" style="flex: 1;">
+                                    <label for="dangerThresholdInput">接近閾値 (m):</label>
+                                    <input type="number" id="dangerThresholdInput" class="form-control form-control-sm" value="20" min="1" max="100">
+                                </div>
+                            </div>
+
+                            <div class="actions-group mb-2">
+                                <button id="calcDistanceBtn" class="btn btn-primary btn-sm btn-block" disabled>
+                                    <i class="fa-solid fa-calculator"></i> 計算
+                                </button>
+                            </div>
+
+                            <div id="distanceStatsBox" class="distance-stats-box" style="display: none;">
+                                <div class="dist-stat-item">最も近いとき: <b id="minDistanceVal" class="text-danger">-</b></div>
+                                <div class="dist-stat-item">平均離隔距離: <b id="avgDistanceVal">-</b></div>
+                                <div class="dist-stat-item">危険接近点数 (&lt;<span id="thresholdLabel">20</span>m): <b id="dangerPointCountVal" class="text-danger">-</b></div>
+                                <div class="dist-stat-item">検知アラート区間: <b id="alertIntervalsCountVal" class="text-warning">-</b></div>
+                            </div>
+
+                            <div class="export-btn-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                                <button id="exportGeoJsonBtn" class="btn btn-success btn-xs" disabled title="接近点GeoJSONを出力">
+                                    <i class="fa-solid fa-file-export"></i> GeoJSON出力
+                                </button>
+                                <button id="exportRiskMeshBtn" class="btn btn-danger btn-xs" disabled title="林班10mメッシュリスク分布図を出力">
+                                    <i class="fa-solid fa-table-cells"></i> リスク分布図出力
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Fixed Sidebar Footer (Always visible regardless of active tab) -->
+            <div class="sidebar-footer">
+                <button id="exportPdfReportBtn" class="btn btn-danger btn-block btn-pdf-export" disabled title="移動統計・標高プロファイル・接近アラート解析・グラフを含むPDFレポートを出力">
+                    <i class="fa-solid fa-file-pdf"></i> 📑 レポート出力
+                </button>
+            </div>
+        </aside>
+
+        <!-- Sidebar Resizer Handle (Vertical Bar) -->
+        <div id="sidebarResizer" class="resizer resizer-vertical" title="ドラッグしてサイドバー幅を調整"></div>
+
+        <!-- Floating Sidebar Open Button (When collapsed) -->
+        <button id="openSidebarFloatingBtn" class="floating-toggle-btn floating-left" style="display: none;" title="サイドバーを開く">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+
+        <!-- Main Workspace (Map & Charts) -->
+        <main class="main-content">
+            <!-- Map Section -->
+            <div id="mapContainer" class="map-container">
+                <div id="map"></div>
+                <div class="map-overlay-title">
+                    <span id="mapStatusText">国土地理院地図 | GPX・ポリゴン・GeoTIFFを読み込んでください</span>
+                </div>
+
+                <!-- Floating Near-Miss Hazard Button (Yellow Triangle with Black '!') -->
+                <button id="nearMissBtn" class="map-floating-hazard-btn" title="ヒヤリハット報告（地図にピンを設置）">
+                    <svg viewBox="0 0 36 32" width="28" height="25">
+                        <path d="M18 2 L34 30 L2 30 Z" fill="#facc15" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+                        <text x="18" y="24" font-family="sans-serif" font-weight="900" font-size="17" fill="#000000" text-anchor="middle">!</text>
+                    </svg>
+                </button>
+
+                <!-- Pin Mode Guidance Banner -->
+                <div id="pinModeBanner" class="pin-mode-banner" style="display: none;">
+                    <span><i class="fa-solid fa-location-crosshairs"></i> 地図上をクリックしてヒヤリハット発生地点を指定してください</span>
+                    <button id="cancelPinModeBtn" class="btn btn-xs btn-outline-light">キャンセル (Esc)</button>
+                </div>
+            </div>
+
+            <!-- Panel Resizer Handle (Horizontal Bar) -->
+            <div id="panelResizer" class="resizer resizer-horizontal" title="ドラッグしてグラフパネルの高さを調整"></div>
+
+            <!-- Analysis & Charts Panel -->
+            <div id="analysisPanel" class="analysis-panel">
+                <div class="panel-tabs-bar">
+                    <div class="panel-tabs">
+                        <button class="tab-btn active" data-tab="hourlyStatsTab"><i class="fa-solid fa-table-list"></i> 1時間区間統計表</button>
+                        <button class="tab-btn" data-tab="hourlyChartTab"><i class="fa-solid fa-chart-column"></i> 1時間移動距離グラフ</button>
+                        <button class="tab-btn" data-tab="elevationChartTab"><i class="fa-solid fa-chart-line"></i> 標高差プロファイル</button>
+                    </div>
+                    <button id="togglePanelBtn" class="collapse-btn panel-collapse-btn" title="下部パネルを折りたたむ">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                </div>
+
+                <div class="tab-contents">
+                    <!-- Tab 1: Hourly Stats Table (Side-by-Side or Stacked for 2 GPX) -->
+                    <div id="hourlyStatsTab" class="tab-pane active">
+                        <div id="tablesContainer" class="tables-dual-container">
+                            <div class="table-section-block" id="tableBlock1">
+                                <h5 class="table-sub-title" id="table1Heading">GPX 1</h5>
+                                <div class="table-wrapper">
+                                    <table id="hourlyTable1" class="custom-table">
+                                        <thead>
+                                            <tr>
+                                                <th>時間帯 (00分開始)</th>
+                                                <th>水平移動計 (m)</th>
+                                                <th>水平平均 (m/分)</th>
+                                                <th>垂直上昇 (m)</th>
+                                                <th>垂直下降 (m)</th>
+                                                <th>最低標高 (m)</th>
+                                                <th>最高標高 (m)</th>
+                                                <th>点数</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td colspan="8" class="text-center">対象GPXを選択すると集計結果が表示されます</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="table-section-block" id="tableBlock2" style="display: none;">
+                                <h5 class="table-sub-title" id="table2Heading">GPX 2</h5>
+                                <div class="table-wrapper">
+                                    <table id="hourlyTable2" class="custom-table">
+                                        <thead>
+                                            <tr>
+                                                <th>時間帯 (00分開始)</th>
+                                                <th>水平移動計 (m)</th>
+                                                <th>水平平均 (m/分)</th>
+                                                <th>垂直上昇 (m)</th>
+                                                <th>垂直下降 (m)</th>
+                                                <th>最低標高 (m)</th>
+                                                <th>最高標高 (m)</th>
+                                                <th>点数</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td colspan="8" class="text-center">対象GPX 2を選択すると集計結果が表示されます</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Hourly Distance Bar Chart -->
+                    <div id="hourlyChartTab" class="tab-pane">
+                        <div class="tab-pane-header" style="justify-content: flex-end; margin-bottom: 2px;">
+                            <button id="saveHourlyChartPng" class="btn btn-outline-secondary btn-sm">
+                                <i class="fa-solid fa-camera"></i> PNG保存
+                            </button>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="hourlyBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Continuous Elevation Line Chart -->
+                    <div id="elevationChartTab" class="tab-pane">
+                        <div class="tab-pane-header" style="justify-content: flex-end; margin-bottom: 2px;">
+                            <div class="header-tools">
+                                <button id="saveElevChartPng" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fa-solid fa-camera"></i> PNG保存
+                                </button>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="elevationLineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Panel Open Button -->
+            <button id="openPanelFloatingBtn" class="floating-toggle-btn floating-bottom" style="display: none;" title="グラフパネルを開く">
+                <i class="fa-solid fa-chart-line"></i> グラフパネルを開く
+            </button>
+        </main>
+    </div>
+
+    <!-- 360 Panorama Modal -->
+    <div id="panoramaModal" class="media-modal" style="display: none;">
+        <div class="media-modal-content">
+            <div class="media-modal-header">
+                <h4 id="panoramaTitle"><i class="fa-solid fa-street-view"></i> 全天球 360° パノラマ写真ビューア</h4>
+                <button id="closePanoramaBtn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="panoramaViewer" class="panorama-viewer-box"></div>
+        </div>
+    </div>
+
+    <!-- Near-Miss Incident Report Modal (5 Fields) -->
+    <div id="nearMissModal" class="media-modal" style="display: none;">
+        <div class="media-modal-content near-miss-modal-box" style="max-width: 440px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.35);">
+            <div class="media-modal-header" style="background: #fef08a; color: #854d0e; border-bottom: 2px solid #eab308; padding: 10px 16px;">
+                <h4 style="font-size: 14px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #ca8a04;"></i> ヒヤリハット報告の登録
+                </h4>
+                <button id="closeNearMissModalBtn" class="modal-close-btn" style="color: #854d0e; font-size: 20px;">&times;</button>
+            </div>
+            <form id="nearMissForm" style="padding: 16px;">
+                <div id="nmCoordinatesText" style="font-size: 11px; color: #475569; margin-bottom: 12px; background: #f8fafc; padding: 5px 8px; border-radius: 4px; border: 1px solid #e2e8f0; font-family: monospace;">
+                    📍 緯度: -, 経度: -
+                </div>
+
+                <!-- 1. 発生日時 -->
+                <div class="form-group mb-2">
+                    <label for="nmDatetime" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">① 発生日時 <span style="color: #ef4444;">*</span></label>
+                    <input type="datetime-local" id="nmDatetime" class="form-control form-control-sm" required>
+                </div>
+
+                <!-- 2. 作業種別・危険要因 (選択式) -->
+                <div class="form-group mb-2">
+                    <label for="nmCategory" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">② 作業種別・危険要因 <span style="color: #ef4444;">*</span></label>
+                    <select id="nmCategory" class="form-control form-control-sm" required>
+                        <option value="伐木・造材作業（かかり木・跳ね返り）">伐木・造材作業（かかり木・跳ね返り）</option>
+                        <option value="伐木・造材作業（チェーンソー・キックバック）">伐木・造材作業（チェーンソー・キックバック）</option>
+                        <option value="集運材・重機走行（死角・接近）">集運材・重機走行（死角・接近）</option>
+                        <option value="車両・林道走行（路肩崩壊・落石）">車両・林道走行（路肩崩壊・落石）</option>
+                        <option value="足場・急傾斜地（滑落・転倒）">足場・急傾斜地（滑落・転倒）</option>
+                        <option value="合図・連絡・確認不備">合図・連絡・確認不備</option>
+                        <option value="その他（害虫・悪天候等）">その他（害虫・悪天候等）</option>
+                    </select>
+                </div>
+
+                <!-- 3. 関与対象 (選択式) -->
+                <div class="form-group mb-2">
+                    <label for="nmInvolvedTarget" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">③ 関与対象 <span style="color: #ef4444;">*</span></label>
+                    <select id="nmInvolvedTarget" class="form-control form-control-sm" required>
+                        <option value="作業員 ⇔ 重機・車両">作業員 ⇔ 重機・車両</option>
+                        <option value="作業員 ⇔ 立木・倒木">作業員 ⇔ 立木・倒木</option>
+                        <option value="作業員 ⇔ 作業員">作業員 ⇔ 作業員</option>
+                        <option value="作業員単独">作業員単独</option>
+                        <option value="重機・設備単独">重機・設備単独</option>
+                    </select>
+                </div>
+
+                <!-- 4. 危険度・重要度 (選択式) -->
+                <div class="form-group mb-2">
+                    <label for="nmRiskLevel" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">④ 危険度・重要度 <span style="color: #ef4444;">*</span></label>
+                    <select id="nmRiskLevel" class="form-control form-control-sm" required>
+                        <option value="軽微 [Lv.1 注意喚起]">軽微 [Lv.1 注意喚起] (黄)</option>
+                        <option value="中度 [Lv.2 重大事故の恐れ]" selected>中度 [Lv.2 重大事故の恐れ] (橙)</option>
+                        <option value="重大 [Lv.3 死亡・重傷の危険]">重大 [Lv.3 死亡・重傷の危険] (赤)</option>
+                    </select>
+                </div>
+
+                <!-- 5. 状況・要因メモ (自由記述) -->
+                <div class="form-group mb-3">
+                    <label for="nmDescription" style="font-weight: 600; font-size: 11px; color: #334155; margin-bottom: 3px; display: block;">⑤ 状況・要因メモ</label>
+                    <textarea id="nmDescription" class="form-control form-control-sm" rows="3" placeholder="ヒヤリとした具体的な状況や要因を入力してください（例: プロセッサ旋回時に合図なく死角に進入しかけた 等）"></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 8px;">
+                    <button type="button" id="cancelNearMissFormBtn" class="btn btn-outline-secondary btn-sm">キャンセル</button>
+                    <button type="submit" class="btn btn-warning btn-sm" style="font-weight: bold; background: #eab308; color: #111827; border-color: #ca8a04;">
+                        <i class="fa-solid fa-check"></i> 報告を登録
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Application Scripts -->
+    <script src="js/gpx_parser.js"></script>
+    <script src="js/stats.js"></script>
+    <script src="js/distance.js"></script>
+    <script src="js/media_loader.js"></script>
+    <script src="js/hpr_parser.js"></script>
+    <script src="js/gis_layer_loader.js"></script>
+    <script src="js/near_miss_manager.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

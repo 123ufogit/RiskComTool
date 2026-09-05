@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HarvestedProduction version="2.0" xmlns="urn:StanForD2010:HarvestedProduction:2.0">
+  <HarvestedProductionHeader>
+    <SenderApplication>Antigravity Forestry GIS</SenderApplication>
+    <CreationDate>2026-05-18T12:00:00+09:00</CreationDate>
+    <HarvestingCategory>Thinning</HarvestingCategory>
+  </HarvestedProductionHeader>
+  <Machine machineCategory="Harvester">
+    <MachineKey>KOMATSU-931XC-001</MachineKey>
+    <MachineHeadManufacturer>KOMATSU</MachineHeadManufacturer>
+    <MachineHeadModel headModelYear="2024">370.2</MachineHeadModel>
+  </Machine>
+  <SpeciesGroupDefinition speciesGroupKey="1">
+    <SpeciesGroupName>SUGI</SpeciesGroupName>
+    <SpeciesGroupUserID>スギ</SpeciesGroupUserID>
+    <SpeciesGroupPresentationOrder>1</SpeciesGroupPresentationOrder>
+    <DBHHeight>120</DBHHeight>
+  </SpeciesGroupDefinition>
+  <ProductDefinition productKey="1">
+    <ProductGroupName>用材</ProductGroupName>
+    <ProductName>柱材 4.0m</ProductName>
+    <StemTypeCode>1</StemTypeCode>
+  </ProductDefinition>
+  <ProductDefinition productKey="2">
+    <ProductGroupName>用材</ProductGroupName>
+    <ProductName>中目丸太 3.0m</ProductName>
+    <StemTypeCode>1</StemTypeCode>
+  </ProductDefinition>
+  <ProductDefinition productKey="3">
+    <ProductGroupName>用材</ProductGroupName>
+    <ProductName>小径材 2.0m</ProductName>
+    <StemTypeCode>1</StemTypeCode>
+  </ProductDefinition>
+  <ProductDefinition productKey="4">
+    <ProductGroupName>原料</ProductGroupName>
+    <ProductName>バイオマス原料</ProductName>
+    <StemTypeCode>2</StemTypeCode>
+  </ProductDefinition>
+  <HarvestedProductionSite>
+    <SiteName>金沢市大樋町 森林施業団地 (第102林班)</SiteName>
+    <SiteLocation>
+      <Coordinates coordinatesType="WGS84">
+        <Latitude>36.593393</Latitude>
+        <Longitude>136.774920</Longitude>
+        <Altitude>320.0</Altitude>
+      </Coordinates>
+    </SiteLocation>
+    <SingleTreeProcessedStem stemKey="1">
+      <StemNumber>1</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>345</DBH>
+      <ProcessingDate>2026-05-18T09:12:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.593593</Latitude>
+          <Longitude>136.774420</Longitude>
+          <Altitude>355.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.68" sub="0.59" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>240</TopDiameter>
+        <LogVolume sob="0.42" sub="0.37" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>180</TopDiameter>
+        <LogVolume sob="0.26" sub="0.22" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="2">
+      <StemNumber>2</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>282</DBH>
+      <ProcessingDate>2026-05-18T09:23:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.593793</Latitude>
+          <Longitude>136.775120</Longitude>
+          <Altitude>358.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.46" sub="0.40" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>200</TopDiameter>
+        <LogVolume sob="0.30" sub="0.26" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="3">
+        <Length>200</Length>
+        <TopDiameter>160</TopDiameter>
+        <LogVolume sob="0.16" sub="0.14" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="3">
+      <StemNumber>3</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>380</DBH>
+      <ProcessingDate>2026-05-18T09:36:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.593893</Latitude>
+          <Longitude>136.775520</Longitude>
+          <Altitude>360.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.92" sub="0.80" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>280</TopDiameter>
+        <LogVolume sob="0.54" sub="0.47" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>220</TopDiameter>
+        <LogVolume sob="0.28" sub="0.24" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="3" productKey="4">
+        <Length>200</Length>
+        <TopDiameter>140</TopDiameter>
+        <LogVolume sob="0.10" sub="0.09" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="4">
+      <StemNumber>4</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>264</DBH>
+      <ProcessingDate>2026-05-18T09:48:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.593993</Latitude>
+          <Longitude>136.774120</Longitude>
+          <Altitude>362.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.38" sub="0.33" />
+      <SingleTreeProcessedLog logKey="1" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>180</TopDiameter>
+        <LogVolume sob="0.24" sub="0.21" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="4">
+        <Length>200</Length>
+        <TopDiameter>140</TopDiameter>
+        <LogVolume sob="0.14" sub="0.12" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="5">
+      <StemNumber>5</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>328</DBH>
+      <ProcessingDate>2026-05-18T10:02:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.594193</Latitude>
+          <Longitude>136.775020</Longitude>
+          <Altitude>365.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.62" sub="0.54" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>220</TopDiameter>
+        <LogVolume sob="0.38" sub="0.33" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>180</TopDiameter>
+        <LogVolume sob="0.24" sub="0.21" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="6">
+      <StemNumber>6</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>421</DBH>
+      <ProcessingDate>2026-05-18T10:15:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.594393</Latitude>
+          <Longitude>136.775820</Longitude>
+          <Altitude>368.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="1.15" sub="1.00" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>320</TopDiameter>
+        <LogVolume sob="0.68" sub="0.59" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>260</TopDiameter>
+        <LogVolume sob="0.35" sub="0.31" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="3" productKey="4">
+        <Length>200</Length>
+        <TopDiameter>160</TopDiameter>
+        <LogVolume sob="0.12" sub="0.10" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="7">
+      <StemNumber>7</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>306</DBH>
+      <ProcessingDate>2026-05-18T10:28:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.594593</Latitude>
+          <Longitude>136.774520</Longitude>
+          <Altitude>370.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.55" sub="0.48" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>220</TopDiameter>
+        <LogVolume sob="0.36" sub="0.31" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="3">
+        <Length>250</Length>
+        <TopDiameter>160</TopDiameter>
+        <LogVolume sob="0.19" sub="0.17" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="8">
+      <StemNumber>8</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>250</DBH>
+      <ProcessingDate>2026-05-18T10:39:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.594793</Latitude>
+          <Longitude>136.775320</Longitude>
+          <Altitude>373.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.34" sub="0.30" />
+      <SingleTreeProcessedLog logKey="1" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>180</TopDiameter>
+        <LogVolume sob="0.22" sub="0.19" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="4">
+        <Length>200</Length>
+        <TopDiameter>120</TopDiameter>
+        <LogVolume sob="0.12" sub="0.11" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="9">
+      <StemNumber>9</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>362</DBH>
+      <ProcessingDate>2026-05-18T10:51:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.594993</Latitude>
+          <Longitude>136.775720</Longitude>
+          <Altitude>375.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.82" sub="0.71" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>260</TopDiameter>
+        <LogVolume sob="0.50" sub="0.43" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="2">
+        <Length>300</Length>
+        <TopDiameter>200</TopDiameter>
+        <LogVolume sob="0.32" sub="0.28" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+    <SingleTreeProcessedStem stemKey="10">
+      <StemNumber>10</StemNumber>
+      <SpeciesGroupKey>1</SpeciesGroupKey>
+      <DBH>298</DBH>
+      <ProcessingDate>2026-05-18T11:05:00+09:00</ProcessingDate>
+      <SingleTreeProcessedStemLocation>
+        <Coordinates coordinatesType="WGS84">
+          <Latitude>36.595193</Latitude>
+          <Longitude>136.774820</Longitude>
+          <Altitude>378.0</Altitude>
+        </Coordinates>
+      </SingleTreeProcessedStemLocation>
+      <StemTotalVolume sob="0.51" sub="0.44" />
+      <SingleTreeProcessedLog logKey="1" productKey="1">
+        <Length>400</Length>
+        <TopDiameter>200</TopDiameter>
+        <LogVolume sob="0.32" sub="0.28" />
+      </SingleTreeProcessedLog>
+      <SingleTreeProcessedLog logKey="2" productKey="3">
+        <Length>250</Length>
+        <TopDiameter>160</TopDiameter>
+        <LogVolume sob="0.19" sub="0.16" />
+      </SingleTreeProcessedLog>
+    </SingleTreeProcessedStem>
+  </HarvestedProductionSite>
+</HarvestedProduction>
