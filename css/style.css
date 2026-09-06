@@ -154,37 +154,42 @@ body {
 /* Floating Open Buttons */
 .floating-toggle-btn {
     position: absolute;
-    z-index: 1500;
+    z-index: 3000;
     background: #1b5e20;
     color: #ffffff;
     border: 2px solid #ffffff;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
     cursor: pointer;
-    font-size: 0.78rem;
-    font-weight: 600;
-    border-radius: 6px;
-    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 20px;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    transition: transform 0.2s, background 0.2s;
+    gap: 8px;
+    transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .floating-toggle-btn:hover {
     background: #2e7d32;
     transform: scale(1.05);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
 }
 
 .floating-left {
     top: 15px;
     left: 12px;
-    border-radius: 0 8px 8px 0;
-    padding: 10px 8px;
+    border-radius: 8px;
+    padding: 10px 14px;
 }
 
 .floating-bottom {
-    bottom: 12px;
-    right: 16px;
+    bottom: 24px;
+    right: 20px;
 }
 
 /* Resizer Handles */
@@ -293,32 +298,70 @@ body {
 }
 
 .panel-section {
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid #edf2f7;
 }
 
 .panel-section h3 {
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     font-weight: 700;
     color: #2d3748;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.section-desc {
-    font-size: 0.72rem;
-    color: #718096;
-    margin-bottom: 8px;
-    line-height: 1.35;
+/* Collapsible Section Header */
+.collapsible-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 2px 0;
+    transition: opacity 0.2s;
 }
 
-/* Dropzone */
+.collapsible-section-header:hover {
+    opacity: 0.8;
+}
+
+.collapsible-section-header h3 {
+    margin-bottom: 0 !important;
+}
+
+.section-chevron {
+    font-size: 0.76rem;
+    color: #718096;
+    transition: transform 0.25s ease;
+}
+
+.collapsible-section.collapsed .section-chevron {
+    transform: rotate(-90deg);
+}
+
+.collapsible-section.collapsed .collapsible-section-content {
+    display: none;
+}
+
+.collapsible-section-content {
+    margin-top: 8px;
+    transition: all 0.2s ease;
+}
+
+.section-desc {
+    font-size: 0.70rem;
+    color: #718096;
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+
+/* Dropzone (Compact) */
 .dropzone {
-    border: 2px dashed #cbd5e0;
-    border-radius: 8px;
-    padding: 14px 10px;
+    border: 1.5px dashed #cbd5e0;
+    border-radius: 6px;
+    padding: 8px 8px;
     text-align: center;
     background: #fafafa;
     cursor: pointer;
@@ -331,15 +374,15 @@ body {
 }
 
 .dropzone .drop-icon {
-    font-size: 24px;
+    font-size: 18px;
     color: #4a5568;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .dropzone p {
-    font-size: 0.74rem;
+    font-size: 0.68rem;
     color: #4a5568;
-    line-height: 1.35;
+    line-height: 1.25;
 }
 
 .dropzone span {
@@ -350,28 +393,39 @@ body {
 
 .sample-btn-container {
     display: flex;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.sample-btn-container .btn {
+    padding: 4px 6px;
+    font-size: 0.70rem;
 }
 
 .file-list-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;
-    margin-bottom: 4px;
+    margin-top: 6px;
+    margin-bottom: 2px;
 }
 
 .file-list-header h4 {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: #4a5568;
+    font-weight: 600;
+}
+
+.file-list-header .btn-xs {
+    padding: 1px 5px;
+    font-size: 0.64rem;
 }
 
 .file-list {
-    max-height: 110px;
+    max-height: 65px;
     overflow-y: auto;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: #ffffff;
 }
 
@@ -379,9 +433,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 8px;
+    padding: 3px 6px;
     border-bottom: 1px solid #f1f5f9;
-    font-size: 0.74rem;
+    font-size: 0.70rem;
     cursor: pointer;
 }
 
@@ -401,13 +455,13 @@ body {
 .file-item-info {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     overflow: hidden;
 }
 
 .color-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
 }
@@ -421,14 +475,14 @@ body {
 }
 
 .file-meta {
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     color: #718096;
 }
 
 .empty-msg {
-    padding: 8px;
+    padding: 4px 6px;
     text-align: center;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: #a0aec0;
 }
 
@@ -1042,31 +1096,56 @@ body {
 }
 
 /* ==========================================================================
-   5. Near-Miss (ヒヤリハット) Floating Button, Banner & Modal
+   5. Map Floating Controls (Near-Miss, PNG Export, GPS Location)
    ========================================================================== */
-.map-floating-hazard-btn {
+.map-floating-controls {
     position: absolute;
     top: 12px;
     left: 54px;
     z-index: 1000;
-    width: 42px;
-    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.map-floating-btn {
+    width: 40px;
+    height: 40px;
     background: #ffffff;
     border-radius: 8px;
-    border: 2px solid #ca8a04;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid #cbd5e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
+    font-size: 1.05rem;
+    color: #334155;
+    padding: 0;
+}
+
+.map-floating-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.38);
+    background: #f8fafc;
+    color: #1b5e20;
+    border-color: #2e7d32;
+}
+
+.map-floating-btn:active {
+    transform: scale(0.96);
+}
+
+.map-floating-hazard-btn {
+    border-color: #ca8a04;
 }
 
 .map-floating-hazard-btn:hover {
-    transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
     background: #fef9c3;
+    border-color: #ca8a04;
 }
 
 .map-floating-hazard-btn.active {
@@ -1074,6 +1153,61 @@ body {
     border-color: #eab308;
     box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.5), 0 4px 12px rgba(0, 0, 0, 0.35);
     animation: hazard-btn-pulse 1.4s infinite;
+}
+
+.map-floating-tool-btn.active {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+/* Mobile-only Locate Me Button: Hidden on Desktop, Shown on Mobile */
+.mobile-only-btn {
+    display: none !important;
+}
+
+/* Current GPS Location Marker */
+.current-location-marker {
+    position: relative;
+}
+
+.loc-marker-pulse {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(37, 99, 235, 0.35);
+    border: 2px solid #2563eb;
+    animation: loc-pulse 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.loc-marker-dot {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+}
+
+@keyframes loc-pulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.6);
+        opacity: 0;
+    }
 }
 
 @keyframes hazard-btn-pulse {
@@ -1135,4 +1269,76 @@ body {
 @keyframes temp-pin-bounce {
     from { transform: translateY(0); }
     to { transform: translateY(-8px); }
+}
+
+/* ==========================================================================
+   6. Mobile & Tablet Responsive Optimizations
+   ========================================================================== */
+@media (max-width: 768px) {
+    .sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        height: 100%;
+        z-index: 2500;
+        box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+
+    .sidebar.collapsed {
+        display: none !important;
+    }
+
+    .resizer,
+    #sidebarResizer,
+    #panelResizer {
+        display: none !important;
+    }
+
+    .floating-left {
+        top: 12px;
+        left: 12px;
+        z-index: 3000;
+        padding: 10px 14px;
+        border-radius: 8px;
+    }
+
+    .floating-bottom {
+        bottom: 24px;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+        z-index: 3000 !important;
+        padding: 10px 22px;
+        font-size: 0.88rem;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+        white-space: nowrap;
+    }
+
+    .floating-bottom:hover {
+        transform: translateX(-50%) scale(1.05) !important;
+    }
+
+    .analysis-panel {
+        height: 45vh;
+        max-height: 60vh;
+    }
+
+    .mobile-only-btn {
+        display: flex !important;
+    }
+
+    .map-floating-controls {
+        top: 12px;
+        left: 54px;
+        gap: 5px;
+    }
+
+    .map-floating-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+    }
 }

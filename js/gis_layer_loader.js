@@ -556,48 +556,6 @@ const GISLayerLoader = {
         };
 
         this.addHprLayer(sampleHprGeoJson, 'サンプル_伐倒単木(スギ10本).hpr');
-
-        // Simulated Drone Ortho High-resolution Canvas Overlay
-        const bounds = [
-            [baseLat - 0.0015, baseLon - 0.0015],
-            [baseLat + 0.0025, baseLon + 0.0025]
-        ];
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 400;
-        const ctx = canvas.getContext('2d');
-
-        const grad = ctx.createRadialGradient(200, 200, 30, 200, 200, 200);
-        grad.addColorStop(0, 'rgba(46, 125, 50, 0.9)');
-        grad.addColorStop(0.5, 'rgba(30, 90, 40, 0.85)');
-        grad.addColorStop(1, 'rgba(70, 140, 60, 0.7)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, 400, 400);
-
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 400; i += 40) {
-            ctx.beginPath();
-            ctx.moveTo(i, 0); ctx.lineTo(i, 400);
-            ctx.moveTo(0, i); ctx.lineTo(400, i);
-            ctx.stroke();
-        }
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px sans-serif';
-        ctx.fillText('🚁 ドローン空撮 オルソ画像 (サンプル)', 40, 60);
-        ctx.font = '12px sans-serif';
-        ctx.fillText('航空レーザ DSM / 樹冠高モデル重畳', 40, 85);
-
-        const sampleOrthoLayer = L.imageOverlay(canvas.toDataURL(), bounds, {
-            opacity: this.geotiffOpacity,
-            alt: 'ドローンオルソ画像サンプル'
-        });
-
-        sampleOrthoLayer.addTo(this.geotiffLayerGroup);
-        this.geotiffLayers.push(sampleOrthoLayer);
-        this.layerList.push({ name: 'サンプル_ドローンオルソ画像.tif', type: 'geotiff', layer: sampleOrthoLayer, visible: true });
     },
 
     clearAll: function() {

@@ -42,54 +42,59 @@
 
             <!-- Sidebar Scrollable Content -->
             <div class="sidebar-content">
-                <!-- Dropzone & File List -->
-                <section class="panel-section">
-                    <h3><i class="fa-solid fa-file-arrow-up"></i> ファイル読み込み</h3>
-                    <div id="dropzone" class="dropzone">
-                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
-                        <p>GPX, JPG(位置情報/360度), KML, GeoJSON, GeoTIFF, HPR を<br>ドラッグ＆ドロップまたは <span>選択</span></p>
-                        <input type="file" id="fileInput" multiple accept=".gpx,.jpg,.jpeg,.png,.heic,.mp4,.mov,.webm,.kml,.geojson,.json,.tif,.tiff,.hpr" style="display: none;">
+                <!-- Dropzone & File List (Collapsible) -->
+                <section class="panel-section collapsible-section" id="fileImportSection">
+                    <div class="collapsible-section-header" id="fileImportHeader" role="button" tabindex="0" title="クリックで折りたたみ/展開">
+                        <h3><i class="fa-solid fa-file-arrow-up"></i> ファイル読み込み</h3>
+                        <i class="fa-solid fa-chevron-down section-chevron"></i>
                     </div>
-                    <div class="sample-btn-container">
-                        <button id="loadSampleBtn" class="btn btn-secondary btn-sm" title="林業現場シナリオデータを読み込み"><i class="fa-solid fa-vial"></i> サンプルデータ読込</button>
-                        <button id="clearAllBtn" class="btn btn-outline-danger btn-sm" title="すべてクリア"><i class="fa-solid fa-trash"></i> 全消去</button>
-                    </div>
+                    <div class="collapsible-section-content" id="fileImportContent">
+                        <div id="dropzone" class="dropzone">
+                            <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                            <p>GPX, 写真/360度, KML/GeoJSON, GeoTIFF, HPR<br>ドラッグ＆ドロップまたは <span>選択</span></p>
+                            <input type="file" id="fileInput" multiple accept=".gpx,.jpg,.jpeg,.png,.heic,.mp4,.mov,.webm,.kml,.geojson,.json,.tif,.tiff,.hpr" style="display: none;">
+                        </div>
+                        <div class="sample-btn-container">
+                            <button id="loadSampleBtn" class="btn btn-secondary btn-sm" title="林業現場シナリオデータを読み込み"><i class="fa-solid fa-vial"></i> サンプルデータ読込</button>
+                            <button id="clearAllBtn" class="btn btn-outline-danger btn-sm" title="すべてクリア"><i class="fa-solid fa-trash"></i> 全消去</button>
+                        </div>
 
-                    <div class="file-list-header">
-                        <h4>読み込み済みGPX (<span id="fileCount">0</span>)</h4>
-                        <button id="mergeGpxBtn" class="btn btn-success btn-xs" title="読み込んだ全GPXを1つにまとめてダウンロード" disabled>
-                            <i class="fa-solid fa-code-merge"></i> 全GPXを結合出力
-                        </button>
-                    </div>
-                    <div id="fileList" class="file-list">
-                        <p class="empty-msg">GPXファイルが読み込まれていません</p>
-                    </div>
+                        <div class="file-list-header">
+                            <h4>読み込み済みGPX (<span id="fileCount">0</span>)</h4>
+                            <button id="mergeGpxBtn" class="btn btn-success btn-xs" title="読み込んだ全GPXを1つにまとめてダウンロード" disabled>
+                                <i class="fa-solid fa-code-merge"></i> 結合出力
+                            </button>
+                        </div>
+                        <div id="fileList" class="file-list">
+                            <p class="empty-msg">GPX未読込</p>
+                        </div>
 
-                    <!-- Media Files List -->
-                    <div class="file-list-header" style="margin-top: 8px;">
-                        <h4>現地メディア (<span id="mediaCount">0</span>)</h4>
-                    </div>
-                    <div id="mediaFileList" class="file-list" style="max-height: 80px;">
-                        <p class="empty-msg">写真・動画が読み込まれていません</p>
-                    </div>
+                        <!-- Media Files List -->
+                        <div class="file-list-header">
+                            <h4>現地メディア (<span id="mediaCount">0</span>)</h4>
+                        </div>
+                        <div id="mediaFileList" class="file-list">
+                            <p class="empty-msg">写真・動画未読込</p>
+                        </div>
 
-                    <!-- Polygon & GeoTIFF List -->
-                    <div class="file-list-header" style="margin-top: 8px;">
-                        <h4>林班 / オルソ等 (<span id="gisLayerCount">0</span>)</h4>
-                    </div>
-                    <div id="gisLayerFileList" class="file-list" style="max-height: 80px;">
-                        <p class="empty-msg">KML/GeoJSON/GeoTIFF未読込</p>
-                    </div>
+                        <!-- Polygon & GeoTIFF List -->
+                        <div class="file-list-header">
+                            <h4>林班 / オルソ等 (<span id="gisLayerCount">0</span>)</h4>
+                        </div>
+                        <div id="gisLayerFileList" class="file-list">
+                            <p class="empty-msg">KML/GeoJSON/GeoTIFF未読込</p>
+                        </div>
 
-                    <!-- Near-Miss (ヒヤリハット) Reports List -->
-                    <div class="file-list-header" style="margin-top: 8px;">
-                        <h4>ヒヤリハット報告 (<span id="nearMissCount">0</span>)</h4>
-                        <button id="exportNearMissGeoJsonBtn" class="btn btn-warning btn-xs" title="ヒヤリハット報告をGeoJSONとして一括出力" disabled>
-                            <i class="fa-solid fa-file-export"></i> GeoJSON出力
-                        </button>
-                    </div>
-                    <div id="nearMissFileList" class="file-list" style="max-height: 80px;">
-                        <p class="empty-msg">ヒヤリハット報告なし</p>
+                        <!-- Near-Miss (ヒヤリハット) Reports List -->
+                        <div class="file-list-header">
+                            <h4>ヒヤリハット報告 (<span id="nearMissCount">0</span>)</h4>
+                            <button id="exportNearMissGeoJsonBtn" class="btn btn-warning btn-xs" title="ヒヤリハット報告をGeoJSONとして一括出力" disabled>
+                                <i class="fa-solid fa-file-export"></i> GeoJSON出力
+                            </button>
+                        </div>
+                        <div id="nearMissFileList" class="file-list">
+                            <p class="empty-msg">ヒヤリハット報告なし</p>
+                        </div>
                     </div>
                 </section>
 
@@ -253,13 +258,21 @@
             <div id="mapContainer" class="map-container">
                 <div id="map"></div>
 
-                <!-- Floating Near-Miss Hazard Button (Yellow Triangle with Black '!') -->
-                <button id="nearMissBtn" class="map-floating-hazard-btn" title="ヒヤリハット報告（地図にピンを設置）">
-                    <svg viewBox="0 0 36 32" width="28" height="25">
-                        <path d="M18 2 L34 30 L2 30 Z" fill="#facc15" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
-                        <text x="18" y="24" font-family="sans-serif" font-weight="900" font-size="17" fill="#000000" text-anchor="middle">!</text>
-                    </svg>
-                </button>
+                <!-- Floating Map Controls Group (Near-Miss, PNG Export, Mobile GPS Location) -->
+                <div class="map-floating-controls">
+                    <button id="nearMissBtn" class="map-floating-btn map-floating-hazard-btn" title="ヒヤリハット報告（地図にピンを設置）">
+                        <svg viewBox="0 0 36 32" width="28" height="25">
+                            <path d="M18 2 L34 30 L2 30 Z" fill="#facc15" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+                            <text x="18" y="24" font-family="sans-serif" font-weight="900" font-size="17" fill="#000000" text-anchor="middle">!</text>
+                        </svg>
+                    </button>
+                    <button id="exportMapPngBtn" class="map-floating-btn map-floating-tool-btn" title="地図画像をPNG出力">
+                        <i class="fa-solid fa-camera"></i>
+                    </button>
+                    <button id="locateMeBtn" class="map-floating-btn map-floating-tool-btn mobile-only-btn" title="現在地を表示">
+                        <i class="fa-solid fa-location-crosshairs"></i>
+                    </button>
+                </div>
 
                 <!-- Pin Mode Guidance Banner -->
                 <div id="pinModeBanner" class="pin-mode-banner" style="display: none;">

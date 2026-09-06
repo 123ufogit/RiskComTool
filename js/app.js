@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         state.mediaLayerGroup = L.featureGroup().addTo(state.map);
         state.highlightSegmentLayer = L.featureGroup().addTo(state.map);
         state.hoverMarkerLayer = L.featureGroup().addTo(state.map); // Dedicated layer for multi-GPX hover markers
+        state.currentLocationLayer = L.featureGroup().addTo(state.map); // GPS Current Location
 
         const overlayMaps = {
             'GPX軌跡ライン': state.gpxTracksLayer,
@@ -89,7 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
             '10mリスク分布メッシュ': state.riskMeshLayerGroup,
             '林班ポリゴン (KML/GeoJSON)': state.polygonLayerGroup,
             'GeoTIFF/ドローンオルソ': state.geotiffLayerGroup,
-            '現地写真・動画・360°': state.mediaLayerGroup
+            '現地写真・動画・360°': state.mediaLayerGroup,
+            '現在地 (GPS)': state.currentLocationLayer
         };
 
         // Initialize Sub-loaders
@@ -167,33 +169,228 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        toggleSidebarBtn.addEventListener('click', () => {
+        // Floating buttons on map
+        const exportMapPngBtn = document.getElementById('exportMapPngBtn');
+        const locateMeBtn = document.getElementById('locateMeBtn');
+        const nearMissBtn = document.getElementById('nearMissBtn');
+
+        // Prevent Leaflet map from capturing clicks/touches on floating buttons
+        [openSidebarFloatingBtn, openPanelFloatingBtn, toggleSidebarBtn, togglePanelBtn, exportMapPngBtn, locateMeBtn, nearMissBtn].forEach(el => {
+            if (el && window.L && L.DomEvent) {
+                L.DomEvent.disableClickPropagation(el);
+                L.DomEvent.disableScrollPropagation(el);
+            }
+        });
+
+        toggleSidebarBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             sidebar.classList.add('collapsed');
             sidebarResizer.style.display = 'none';
             openSidebarFloatingBtn.style.display = 'flex';
-            setTimeout(() => state.map.invalidateSize(), 100);
+            setTimeout(() => state.map.invalidateSize(), 150);
         });
 
-        openSidebarFloatingBtn.addEventListener('click', () => {
+        openSidebarFloatingBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             sidebar.classList.remove('collapsed');
-            sidebarResizer.style.display = 'block';
+            sidebarResizer.style.display = window.innerWidth <= 768 ? 'none' : 'block';
             openSidebarFloatingBtn.style.display = 'none';
-            setTimeout(() => state.map.invalidateSize(), 100);
+            setTimeout(() => state.map.invalidateSize(), 150);
         });
 
-        togglePanelBtn.addEventListener('click', () => {
+        togglePanelBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             analysisPanel.classList.add('collapsed');
             panelResizer.style.display = 'none';
             openPanelFloatingBtn.style.display = 'flex';
-            setTimeout(() => state.map.invalidateSize(), 100);
+            setTimeout(() => state.map.invalidateSize(), 150);
         });
 
-        openPanelFloatingBtn.addEventListener('click', () => {
+        openPanelFloatingBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             analysisPanel.classList.remove('collapsed');
-            panelResizer.style.display = 'block';
+            if (!analysisPanel.style.height || parseInt(analysisPanel.style.height) < 80) {
+                analysisPanel.style.height = window.innerWidth <= 768 ? '45vh' : '280px';
+            }
+            panelResizer.style.display = window.innerWidth <= 768 ? 'none' : 'block';
             openPanelFloatingBtn.style.display = 'none';
-            setTimeout(() => state.map.invalidateSize(), 100);
+            setTimeout(() => state.map.invalidateSize(), 150);
         });
+
+        // Section Collapsible Handlers (e.g. #fileImportHeader)
+        const fileImportSection = document.getElementById('fileImportSection');
+        const fileImportHeader = document.getElementById('fileImportHeader');
+        if (fileImportHeader && fileImportSection) {
+            const toggleFileImport = (e) => {
+                e.stopPropagation();
+                fileImportSection.classList.toggle('collapsed');
+            };
+            fileImportHeader.addEventListener('click', toggleFileImport);
+            fileImportHeader.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleFileImport(e);
+                }
+            });
+        }
+
+        // Map Image PNG Export Handler
+        let isExportingMapPng = false;
+        if (exportMapPngBtn) {
+            exportMapPngBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (isExportingMapPng) return;
+
+                if (!window.html2canvas) {
+                    alert('画像出力ライブラリ(html2canvas)が利用できません。');
+                    return;
+                }
+
+                isExportingMapPng = true;
+                const origHtml = exportMapPngBtn.innerHTML;
+                exportMapPngBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                exportMapPngBtn.disabled = true;
+
+                try {
+                    const mapEl = document.getElementById('map');
+                    const canvas = await html2canvas(mapEl, {
+                        useCORS: true,
+                        allowTaint: true,
+                        logging: false,
+                        ignoreElements: (el) => {
+                            return el.classList && (
+                                el.classList.contains('leaflet-control-container') ||
+                                el.classList.contains('map-floating-controls') ||
+                                el.classList.contains('map-floating-btn') ||
+                                el.classList.contains('pin-mode-banner')
+                            );
+                        }
+                    });
+
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const now = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                    const filename = `forestry_map_${timestamp}.png`;
+
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = dataUrl;
+                    downloadLink.download = filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                } catch (err) {
+                    console.error('Map PNG export failed:', err);
+                    alert('地図画像の出力に失敗しました: ' + (err.message || err));
+                } finally {
+                    isExportingMapPng = false;
+                    exportMapPngBtn.innerHTML = origHtml;
+                    exportMapPngBtn.disabled = false;
+                }
+            });
+        }
+
+        // Mobile GPS Current Location Handler
+        let isLocating = false;
+        if (locateMeBtn) {
+            locateMeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isLocating) return;
+
+                if (!navigator.geolocation) {
+                    alert('お使いの端末・ブラウザではGPS位置情報の取得がサポートされていません。');
+                    return;
+                }
+
+                isLocating = true;
+                locateMeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                locateMeBtn.classList.add('active');
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        isLocating = false;
+                        locateMeBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+                        locateMeBtn.classList.remove('active');
+
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        const accuracy = position.coords.accuracy || 0;
+                        const altitude = position.coords.altitude;
+
+                        if (!state.currentLocationLayer) {
+                            state.currentLocationLayer = L.featureGroup().addTo(state.map);
+                        } else {
+                            state.currentLocationLayer.clearLayers();
+                        }
+
+                        // Accuracy Circle
+                        if (accuracy > 0) {
+                            L.circle([lat, lon], {
+                                radius: accuracy,
+                                color: '#2563eb',
+                                weight: 1.5,
+                                fillColor: '#3b82f6',
+                                fillOpacity: 0.15
+                            }).addTo(state.currentLocationLayer);
+                        }
+
+                        // Custom Pulse Pin Marker
+                        const locIcon = L.divIcon({
+                            className: 'current-location-marker',
+                            html: `
+                                <div class="loc-marker-pulse"></div>
+                                <div class="loc-marker-dot">
+                                    <i class="fa-solid fa-person-walking" style="font-size: 13px; color: #ffffff;"></i>
+                                </div>
+                            `,
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        });
+
+                        const popupContent = `
+                            <div style="font-size: 12px; line-height: 1.45; padding: 2px;">
+                                <strong style="color: #1e40af;"><i class="fa-solid fa-location-dot"></i> 現在地</strong><br>
+                                緯度: <b>${lat.toFixed(6)}</b><br>
+                                経度: <b>${lon.toFixed(6)}</b><br>
+                                測位精度: <b>約 ±${Math.round(accuracy)} m</b>
+                                ${altitude !== null && altitude !== undefined ? `<br>標高: <b>約 ${Math.round(altitude)} m</b>` : ''}
+                            </div>
+                        `;
+
+                        const locMarker = L.marker([lat, lon], { icon: locIcon })
+                            .addTo(state.currentLocationLayer)
+                            .bindPopup(popupContent);
+
+                        state.map.flyTo([lat, lon], Math.max(state.map.getZoom(), 16), {
+                            animate: true,
+                            duration: 1.2
+                        });
+
+                        locMarker.openPopup();
+                    },
+                    (error) => {
+                        isLocating = false;
+                        locateMeBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i>';
+                        locateMeBtn.classList.remove('active');
+
+                        let msg = '位置情報の取得に失敗しました。';
+                        if (error.code === 1) {
+                            msg = '位置情報の利用が許可されていません。端末またはブラウザの位置情報アクセス設定をご確認ください。';
+                        } else if (error.code === 2) {
+                            msg = '位置情報を特定できませんでした。電波環境の良い場所で再試行してください。';
+                        } else if (error.code === 3) {
+                            msg = '位置情報の取得がタイムアウトしました。電波環境の良い場所で再試行してください。';
+                        }
+                        alert(msg);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 12000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
     }
 
     setupResizingAndCollapsing();
