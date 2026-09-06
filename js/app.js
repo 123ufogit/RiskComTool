@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         riskMeshLayerGroup: null,
         mediaLayerGroup: null,
         polygonLayerGroup: null,
+        treePointLayerGroup: null,
         geotiffLayerGroup: null,
         hoverMarker: null,
         highlightSegmentLayer: null,
@@ -35,7 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
         state.map = L.map('map', {
             center: [36.593393, 136.774920],
             zoom: 15,
-            zoomControl: true
+            zoomControl: true,
+            preferCanvas: true
         });
 
         // GSI Tile Layers
@@ -73,7 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         state.geotiffLayerGroup = L.featureGroup().addTo(state.map); // Bottom overlay
-        state.polygonLayerGroup = L.featureGroup().addTo(state.map); // Middle overlay
+        state.polygonLayerGroup = L.featureGroup().addTo(state.map); // Middle overlay: 林班ポリゴン
+        state.treePointLayerGroup = L.featureGroup().addTo(state.map); // 樹木ポイント (HPR伐倒単木)
         state.riskMeshLayerGroup = L.featureGroup().addTo(state.map); // 10m Risk Distribution Mesh
         state.gpxTracksLayer = L.featureGroup().addTo(state.map);    // GPX track lines (Visible by default)
         state.gpxPointsLayer = L.featureGroup();                     // GPX positioning points (Hidden by default)
@@ -89,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '接近アラート地点': state.proximityLayerGroup,
             '10mリスク分布メッシュ': state.riskMeshLayerGroup,
             '林班ポリゴン (KML/GeoJSON)': state.polygonLayerGroup,
+            '樹木ポイント (HPR伐倒単木)': state.treePointLayerGroup,
             'GeoTIFF/ドローンオルソ': state.geotiffLayerGroup,
             '現地写真・動画・360°': state.mediaLayerGroup,
             '現在地 (GPS)': state.currentLocationLayer
@@ -96,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize Sub-loaders
         MediaLoader.init(state.map, state.mediaLayerGroup);
-        GISLayerLoader.init(state.map, state.polygonLayerGroup, state.geotiffLayerGroup);
+        GISLayerLoader.init(state.map, state.polygonLayerGroup, state.geotiffLayerGroup, state.treePointLayerGroup);
         NearMissManager.init(state.map);
 
         overlayMaps['ヒヤリハット報告'] = NearMissManager.layerGroup;
@@ -106,6 +110,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initMap();
+
+    /**
+     * High-Precision Map Snapshot Capture Helper
+     * Resolves alignment issues between map background tiles and overlay vector layers (polygons, lines, GeoTIFF, mesh)
+     */
+    async function captureMapToDataUrl() {
+        if (!window.html2canvas) {
+            throw new Error('html2canvas ライブラリが読み込まれていません');
+        }
+
+        const mapEl = document.getElementById('map');
+        if (!mapEl) throw new Error('地図要素が見つかりません');
+
+        // Capture with onclone transform normalization
+        const canvas = await html2canvas(mapEl, {
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            scale: Math.max(window.devicePixelRatio || 1, 2), // High-DPI crisp snapshot
+            ignoreElements: (el) => {
+                return el.classList && (
+                    el.classList.contains('leaflet-control-container') ||
+                    el.classList.contains('map-floating-controls') ||
+                    el.classList.contains('map-floating-btn') ||
+                    el.classList.contains('pin-mode-banner') ||
+                    el.classList.contains('map-status-overlay') ||
+                    el.classList.contains('floating-open-btn') ||
+                    el.classList.contains('floating-toggle-btn')
+                );
+            },
+            onclone: (clonedDoc) => {
+                const clonedMap = clonedDoc.getElementById('map');
+                if (!clonedMap) return;
+
+                // Normalize .leaflet-map-pane transform: translate3d(x, y, 0) into left/top to prevent html2canvas 3D offset distortion
+                const mapPane = clonedMap.querySelector('.leaflet-map-pane');
+                if (mapPane) {
+                    const compStyle = window.getComputedStyle(mapPane);
+                    const transform = compStyle.transform || compStyle.webkitTransform;
+                    if (transform && transform !== 'none') {
+                        const matrixMatch = transform.match(/matrix\(([^)]+)\)/);
+                        const matrix3dMatch = transform.match(/matrix3d\(([^)]+)\)/);
+                        let tx = 0;
+                        let ty = 0;
+                        if (matrixMatch) {
+                            const parts = matrixMatch[1].split(',').map(s => parseFloat(s.trim()));
+                            if (parts.length >= 6) {
+                                tx = parts[4];
+                                ty = parts[5];
+                            }
+                        } else if (matrix3dMatch) {
+                            const parts = matrix3dMatch[1].split(',').map(s => parseFloat(s.trim()));
+                            if (parts.length >= 16) {
+                                tx = parts[12];
+                                ty = parts[13];
+                            }
+                        }
+
+                        if (tx !== 0 || ty !== 0) {
+                            const curLeft = parseFloat(mapPane.style.left || 0);
+                            const curTop = parseFloat(mapPane.style.top || 0);
+                            mapPane.style.left = `${curLeft + tx}px`;
+                            mapPane.style.top = `${curTop + ty}px`;
+                            mapPane.style.transform = 'none';
+                            mapPane.style.webkitTransform = 'none';
+                        }
+                    }
+                }
+            }
+        });
+
+        return canvas.toDataURL('image/png');
+    }
 
     // -------------------------------------------------------------
     // 2. Visibility & Opacity Management (Integrated per-layer in file list)
@@ -236,59 +313,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Map Image PNG Export Handler
         let isExportingMapPng = false;
-        if (exportMapPngBtn) {
-            exportMapPngBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                if (isExportingMapPng) return;
+    if (exportMapPngBtn) {
+        exportMapPngBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (isExportingMapPng) return;
 
-                if (!window.html2canvas) {
-                    alert('画像出力ライブラリ(html2canvas)が利用できません。');
-                    return;
-                }
+            isExportingMapPng = true;
+            const origHtml = exportMapPngBtn.innerHTML;
+            exportMapPngBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            exportMapPngBtn.disabled = true;
 
-                isExportingMapPng = true;
-                const origHtml = exportMapPngBtn.innerHTML;
-                exportMapPngBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-                exportMapPngBtn.disabled = true;
+            try {
+                const dataUrl = await captureMapToDataUrl();
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+                const filename = `forestry_map_${timestamp}.png`;
 
-                try {
-                    const mapEl = document.getElementById('map');
-                    const canvas = await html2canvas(mapEl, {
-                        useCORS: true,
-                        allowTaint: true,
-                        logging: false,
-                        ignoreElements: (el) => {
-                            return el.classList && (
-                                el.classList.contains('leaflet-control-container') ||
-                                el.classList.contains('map-floating-controls') ||
-                                el.classList.contains('map-floating-btn') ||
-                                el.classList.contains('pin-mode-banner')
-                            );
-                        }
-                    });
-
-                    const dataUrl = canvas.toDataURL('image/png');
-                    const now = new Date();
-                    const pad = (n) => String(n).padStart(2, '0');
-                    const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-                    const filename = `forestry_map_${timestamp}.png`;
-
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = dataUrl;
-                    downloadLink.download = filename;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                } catch (err) {
-                    console.error('Map PNG export failed:', err);
-                    alert('地図画像の出力に失敗しました: ' + (err.message || err));
-                } finally {
-                    isExportingMapPng = false;
-                    exportMapPngBtn.innerHTML = origHtml;
-                    exportMapPngBtn.disabled = false;
-                }
-            });
-        }
+                const downloadLink = document.createElement('a');
+                downloadLink.href = dataUrl;
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            } catch (err) {
+                console.error('Map PNG export failed:', err);
+                alert('地図画像の出力に失敗しました: ' + (err.message || err));
+            } finally {
+                isExportingMapPng = false;
+                exportMapPngBtn.innerHTML = origHtml;
+                exportMapPngBtn.disabled = false;
+            }
+        });
+    }
 
         // Mobile GPS Current Location Handler
         let isLocating = false;
@@ -724,6 +781,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 opacity: isSelected ? 0.95 : 0.70
             }).addTo(state.gpxTracksLayer);
 
+            gpx.trackLayer = line;
+
             line.bindTooltip(`<b>${gpx.name}${tag}</b> (${gpx.points.length}点)`, { sticky: true });
 
             line.on('mousemove', (e) => {
@@ -747,11 +806,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 2. Track Points & Start/End -> state.gpxPointsLayer
             // Sample points for performance and interactive inspection
+            gpx.pointMarkers = [];
             const sampleStep = Math.max(1, Math.floor(gpx.points.length / 100));
             gpx.points.forEach((pt, pIdx) => {
                 if (pIdx === 0 || pIdx === gpx.points.length - 1 || pIdx % sampleStep === 0) {
                     const isEndpoint = (pIdx === 0 || pIdx === gpx.points.length - 1);
-                    const pointColor = isEndpoint ? (pIdx === 0 ? '#16a34a' : '#dc2626') : gpx.color;
+                    const isStart = (pIdx === 0);
+                    const pointColor = isEndpoint ? (isStart ? '#16a34a' : '#dc2626') : gpx.color;
                     const pointRadius = isEndpoint ? 6 : (isSelected ? 3.5 : 2.5);
 
                     const marker = L.circleMarker([pt.lat, pt.lon], {
@@ -762,8 +823,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         fillOpacity: isSelected ? 0.85 : 0.6
                     }).addTo(state.gpxPointsLayer);
 
+                    gpx.pointMarkers.push({ marker: marker, isEndpoint: isEndpoint, isStart: isStart });
+
                     const timeStr = pt.time ? new Date(pt.time).toLocaleTimeString('ja-JP') : '-';
-                    const popupContent = `<b>${gpx.name}${tag} ${isEndpoint ? (pIdx === 0 ? '[出発]' : '[終了]') : `(点 #${pIdx+1})`}</b><br>標高: ${pt.ele.toFixed(1)}m<br>時刻: ${timeStr}`;
+                    const popupContent = `<b>${gpx.name}${tag} ${isEndpoint ? (isStart ? '[出発]' : '[終了]') : `(点 #${pIdx+1})`}</b><br>標高: ${pt.ele.toFixed(1)}m<br>時刻: ${timeStr}`;
                     marker.bindPopup(popupContent);
 
                     marker.on('mouseover', () => {
@@ -775,9 +838,83 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        if (state.currentProximityResult) {
+            dimNonAnalysisGpxTracks();
+        }
+
         if (allLatLngs.length > 0) {
             state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [30, 30] });
         }
+    }
+
+    /**
+     * Restore all GPX track colors to their original palette colors
+     */
+    function restoreAllGpxTrackColors() {
+        state.gpxList.forEach((gpx, idx) => {
+            const isSel1 = idx === state.selectedGpxIndex1;
+            const isSel2 = idx === state.selectedGpxIndex2;
+            const isSelected = isSel1 || isSel2;
+            if (gpx.trackLayer) {
+                gpx.trackLayer.setStyle({
+                    color: gpx.color,
+                    weight: isSelected ? 5 : 3,
+                    opacity: isSelected ? 0.95 : 0.70
+                });
+            }
+            if (gpx.pointMarkers) {
+                gpx.pointMarkers.forEach((item) => {
+                    const pointColor = item.isEndpoint ? (item.isStart ? '#16a34a' : '#dc2626') : gpx.color;
+                    item.marker.setStyle({
+                        color: item.isEndpoint ? '#ffffff' : pointColor,
+                        fillColor: pointColor,
+                        fillOpacity: isSelected ? 0.85 : 0.6
+                    });
+                });
+            }
+        });
+    }
+
+    /**
+     * Dim non-analysis GPX tracks to grey during proximity analysis
+     */
+    function dimNonAnalysisGpxTracks() {
+        state.gpxList.forEach((gpx, idx) => {
+            const isTarget = (idx === state.selectedGpxIndex1 || idx === state.selectedGpxIndex2);
+            if (gpx.trackLayer) {
+                if (isTarget) {
+                    gpx.trackLayer.setStyle({
+                        color: gpx.color,
+                        weight: 5,
+                        opacity: 0.95
+                    });
+                } else {
+                    gpx.trackLayer.setStyle({
+                        color: '#94a3b8',
+                        weight: 2.5,
+                        opacity: 0.35
+                    });
+                }
+            }
+            if (gpx.pointMarkers) {
+                gpx.pointMarkers.forEach((item) => {
+                    if (isTarget) {
+                        const pointColor = item.isEndpoint ? (item.isStart ? '#16a34a' : '#dc2626') : gpx.color;
+                        item.marker.setStyle({
+                            color: item.isEndpoint ? '#ffffff' : pointColor,
+                            fillColor: pointColor,
+                            fillOpacity: 0.85
+                        });
+                    } else {
+                        item.marker.setStyle({
+                            color: '#cbd5e1',
+                            fillColor: '#94a3b8',
+                            fillOpacity: 0.25
+                        });
+                    }
+                });
+            }
+        });
     }
 
     /**
@@ -787,6 +924,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (idx1 < 0 || idx1 >= state.gpxList.length) return;
         state.selectedGpxIndex1 = idx1;
         state.selectedGpxIndex2 = (idx2 >= 0 && idx2 < state.gpxList.length && idx2 !== idx1) ? idx2 : -1;
+        state.currentProximityResult = null;
+        restoreAllGpxTrackColors();
 
         const gpx1 = state.gpxList[state.selectedGpxIndex1];
         const stats1 = GPXStats.analyze(gpx1);
@@ -1064,6 +1203,9 @@ document.addEventListener('DOMContentLoaded', () => {
         result.threshold = threshold;
         state.currentProximityResult = result;
 
+        // Dim non-analysis GPX tracks to grey and highlight the target pair
+        dimNonAnalysisGpxTracks();
+
         // Update stats box UI
         document.getElementById('thresholdLabel').textContent = threshold;
         document.getElementById('minDistanceVal').textContent = `${result.minDistanceM.toFixed(1)} m`;
@@ -1217,25 +1359,10 @@ document.addEventListener('DOMContentLoaded', () => {
             exportPdfReportBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> レポート生成中...';
 
             try {
-                // 1. Capture current map as static PNG image
+                // 1. Capture current map as static PNG image with high precision
                 let mapImgSrc = '';
                 try {
-                    if (window.html2canvas) {
-                        const mapEl = document.getElementById('map');
-                        const canvas = await html2canvas(mapEl, {
-                            useCORS: true,
-                            allowTaint: true,
-                            logging: false,
-                            ignoreElements: (el) => {
-                                return el.classList && (
-                                    el.classList.contains('leaflet-control-container') ||
-                                    el.classList.contains('map-status-overlay') ||
-                                    el.classList.contains('floating-open-btn')
-                                );
-                            }
-                        });
-                        mapImgSrc = canvas.toDataURL('image/png');
-                    }
+                    mapImgSrc = await captureMapToDataUrl();
                 } catch (mapErr) {
                     console.error('Map image capture error:', mapErr);
                 }
@@ -1273,9 +1400,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isProximityVisible = state.map.hasLayer(state.proximityLayerGroup);
                 const isRiskMeshVisible = state.map.hasLayer(state.riskMeshLayerGroup);
                 const isPolygonVisible = state.map.hasLayer(state.polygonLayerGroup);
+                const isTreePointsVisible = state.treePointLayerGroup ? state.map.hasLayer(state.treePointLayerGroup) : true;
                 const isMediaVisible = state.map.hasLayer(state.mediaLayerGroup);
                 const isNearMissVisible = typeof NearMissManager !== 'undefined' && NearMissManager.layerGroup && state.map.hasLayer(NearMissManager.layerGroup);
-                const isHprVisible = GISLayerLoader.layerList.some(item => item.type === 'hpr' && item.visible !== false);
+                const isHprVisible = isTreePointsVisible && GISLayerLoader.layerList.some(item => item.type === 'hpr' && item.visible !== false);
 
                 const trackCount = isTracksVisible ? state.gpxList.length : 0;
                 const polygonCount = isPolygonVisible ? GISLayerLoader.layerList.filter(item => item.type === 'polygon' && item.visible !== false).length : 0;
@@ -1300,7 +1428,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     legendItems.push(`<div class="map-legend-item"><span style="display:inline-block; width:16px; height:2px; background:#dc2626;"></span> 林班ポリゴン (${polygonCount}件)</div>`);
                 }
                 if (isHprVisible) {
-                    legendItems.push(`<div class="map-legend-item"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669; border:1px solid #fff;"></span> HPR伐倒単木 (樹種別)</div>`);
+                    legendItems.push(`<div class="map-legend-item"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#059669; border:1px solid #fff;"></span> 樹木ポイント (HPR伐倒単木)</div>`);
                 }
                 if (isRiskMeshVisible && state.currentRiskMeshResult) {
                     legendItems.push(`<div class="map-legend-item"><span style="display:inline-block; width:10px; height:10px; border:1px solid #cbd5e1; background:linear-gradient(to right, #eab308, #dc2626);"></span> 10m危険リスクメッシュ (黄→赤)</div>`);
@@ -1410,18 +1538,18 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         </div>
-                        <table class="report-table">
+                        <table class="report-table" style="table-layout: fixed; width: 100%;">
                             <thead>
                                 <tr>
-                                    <th style="width: 28px; text-align: center;">No.</th>
-                                    <th style="width: 100px;">いつ (日時/時間帯)</th>
-                                    <th style="width: 105px;">分類① / 分類②</th>
-                                    <th style="width: 95px;">誰が・何が</th>
-                                    <th style="width: 65px;">何を</th>
-                                    <th style="width: 130px;">どのようにして</th>
-                                    <th style="width: 120px;">どうなった</th>
-                                    <th>対応策</th>
-                                    <th style="width: 85px;">位置 (座標)</th>
+                                    <th style="width: 3.5%; text-align: center;">No.</th>
+                                    <th style="width: 9.5%;">いつ</th>
+                                    <th style="width: 10.5%;">分類① / 分類②</th>
+                                    <th style="width: 9%;">誰が・何が</th>
+                                    <th style="width: 7%;">何を</th>
+                                    <th style="width: 15%;">どのようにして</th>
+                                    <th style="width: 13.5%;">どうなった</th>
+                                    <th style="width: 25%;">🛡️ 対応策</th>
+                                    <th style="width: 7%; text-align: center;">位置</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1438,18 +1566,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                     return `
                                         <tr>
-                                            <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-                                            <td style="font-size: 10.5px;">${dateStr}<br><span style="color:#64748b;">${timeStr}</span></td>
-                                            <td style="font-size: 11px;">
+                                            <td style="text-align: center; font-weight: bold; font-size: 11px;">${idx + 1}</td>
+                                            <td style="font-size: 10px; line-height: 1.3;">${dateStr}<br><span style="color:#64748b;">${timeStr}</span></td>
+                                            <td style="font-size: 10.5px; line-height: 1.3;">
                                                 <span style="font-weight: bold; color: #0369a1;">[${c1}]</span><br>
                                                 <span style="color: #334155;">${c2}</span>
                                             </td>
-                                            <td style="font-size: 11px; font-weight: 600; color: #0f172a;">${whoStr}</td>
-                                            <td style="font-size: 11px; font-weight: 600; color: #0f172a;">${whatStr}</td>
-                                            <td style="font-size: 10.5px; color: #334155; white-space: pre-wrap;">${howStr}</td>
-                                            <td style="font-size: 10.5px; color: #991b1b; white-space: pre-wrap;">${resultStr}</td>
-                                            <td style="font-size: 10.5px; color: #166534; white-space: pre-wrap;">${cmStr}</td>
-                                            <td style="font-size: 9.5px; color: #64748b; font-family: monospace;">${r.lat.toFixed(5)},<br>${r.lon.toFixed(5)}</td>
+                                            <td style="font-size: 10.5px; font-weight: 600; color: #0f172a; line-height: 1.3;">${whoStr}</td>
+                                            <td style="font-size: 10.5px; font-weight: 600; color: #0f172a; line-height: 1.3;">${whatStr}</td>
+                                            <td style="font-size: 10.5px; color: #334155; white-space: pre-wrap; line-height: 1.35;">${howStr}</td>
+                                            <td style="font-size: 10.5px; color: #991b1b; white-space: pre-wrap; line-height: 1.35;">${resultStr}</td>
+                                            <td style="font-size: 11px; color: #166534; font-weight: 500; white-space: pre-wrap; line-height: 1.4; background: #f0fdf4;">${cmStr}</td>
+                                            <td style="font-size: 9px; color: #64748b; font-family: monospace; text-align: center; line-height: 1.2;">${r.lat.toFixed(4)},<br>${r.lon.toFixed(4)}</td>
                                         </tr>
                                     `;
                                 }).join('')}
@@ -1491,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </style>
                 </head>
                 <body>
-                    <div class="no-print" style="margin-bottom: 15px; padding: 10px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="no-print" style="margin-bottom: 15px; padding: 10px 14px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size:13px; font-weight:bold; color:#0369a1;">📄 印刷プレビュー (ブラウザの「PDFとして保存」または印刷をご利用ください)</span>
                         <button onclick="window.print()" style="padding: 6px 16px; background: #0284c7; color: #fff; font-weight: bold; border: none; border-radius: 4px; cursor: pointer;">印刷 / PDF保存</button>
                     </div>

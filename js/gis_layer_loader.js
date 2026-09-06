@@ -6,19 +6,23 @@ const GISLayerLoader = {
     map: null,
     polygonLayerGroup: null,
     geotiffLayerGroup: null,
+    treePointLayerGroup: null,
     polygonLayers: [],
     geotiffLayers: [],
+    treePointLayers: [],
     layerList: [],
 
     polygonOpacity: 0.0, // Initial 0% (塗りつぶしなし)
     geotiffOpacity: 0.7, // Initial 70%
     isPolygonVisible: true,
     isGeotiffVisible: true,
+    isTreePointVisible: true,
 
-    init: function(map, polyGroup, geoGroup) {
+    init: function(map, polyGroup, geoGroup, treeGroup = null) {
         this.map = map;
         this.polygonLayerGroup = polyGroup;
         this.geotiffLayerGroup = geoGroup;
+        this.treePointLayerGroup = treeGroup;
     },
 
     /**
@@ -162,8 +166,9 @@ const GISLayerLoader = {
             }
         });
 
-        layer.addTo(this.polygonLayerGroup);
-        this.polygonLayers.push(layer);
+        const targetGroup = this.treePointLayerGroup || this.polygonLayerGroup;
+        layer.addTo(targetGroup);
+        this.treePointLayers.push(layer);
         const displayName = `${layerName} (${geojson.features.length}本 / ${geojson.metadata.totalVolumeSobM3}m³)`;
         this.layerList.push({
             name: displayName,
@@ -378,7 +383,9 @@ const GISLayerLoader = {
         const item = this.layerList[index];
         item.visible = !item.visible;
 
-        const targetGroup = item.type === 'geotiff' ? this.geotiffLayerGroup : this.polygonLayerGroup;
+        const targetGroup = item.type === 'geotiff' 
+            ? this.geotiffLayerGroup 
+            : (item.type === 'hpr' && this.treePointLayerGroup ? this.treePointLayerGroup : this.polygonLayerGroup);
 
         if (item.visible) {
             if (!targetGroup.hasLayer(item.layer)) {
@@ -439,8 +446,10 @@ const GISLayerLoader = {
     createSampleForestryLayers: function(baseLat = 36.593393, baseLon = 136.774920) {
         this.polygonLayerGroup.clearLayers();
         this.geotiffLayerGroup.clearLayers();
+        if (this.treePointLayerGroup) this.treePointLayerGroup.clearLayers();
         this.polygonLayers = [];
         this.geotiffLayers = [];
+        this.treePointLayers = [];
         this.layerList = [];
 
         // Sample Forestry Compartments (林班 & 施業区)
@@ -561,8 +570,10 @@ const GISLayerLoader = {
     clearAll: function() {
         this.polygonLayerGroup.clearLayers();
         this.geotiffLayerGroup.clearLayers();
+        if (this.treePointLayerGroup) this.treePointLayerGroup.clearLayers();
         this.polygonLayers = [];
         this.geotiffLayers = [];
+        this.treePointLayers = [];
         this.layerList = [];
     }
 };
