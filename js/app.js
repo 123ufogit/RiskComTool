@@ -580,7 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (allLatLngs.length > 0) {
             state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [30, 30] });
-            document.getElementById('mapStatusText').textContent = `国土地理院地図 | ${state.gpxList.length} 件のGPXを表示中`;
         }
     }
 
