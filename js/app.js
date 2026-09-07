@@ -1979,11 +1979,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const headLat = 36.5920059, headLon = 136.7749572, headElev = 160.8;
         const tailLat = 36.5939062, tailLon = 136.7752264, tailElev = 113.1;
 
-        // Worker 01 (Tanaka): Feller with 1~3m forest canopy GPS jitter
+        // Worker 01 (Tanaka): Chainsaw feller working along and crossing the Tower Yarder cableway corridor
         const s1 = makeGpx('作業者_田中(伐倒)',
-            t => baseLat + 0.0010 + 0.0003 * Math.sin(t / 800) + (t > 3000 && t < 3600 ? 0.00003 : 0),
-            t => baseLon + 0.0008 + 0.0002 * Math.cos(t / 700) + (t > 3000 && t < 3600 ? 0.00002 : 0),
-            t => baseElev + 55.0 + 15.0 * Math.sin(t / 900),
+            t => {
+                const p = 0.65 + 0.25 * Math.sin(t / 1200.0); // moves along cableway 0.40 ~ 0.90
+                const cLat = headLat + (tailLat - headLat) * p;
+                return cLat + 0.00008 * Math.cos(t / 600.0);
+            },
+            t => {
+                const p = 0.65 + 0.25 * Math.sin(t / 1200.0);
+                const cLon = headLon + (tailLon - headLon) * p;
+                return cLon + 0.00009 * Math.sin(t / 500.0);
+            },
+            t => {
+                const p = 0.65 + 0.25 * Math.sin(t / 1200.0);
+                const cEle = headElev + (tailElev - headElev) * p - 3.0 * Math.sin(p * Math.PI);
+                return cEle + 2.5 * Math.cos(t / 700.0);
+            },
             true, 1
         );
 
@@ -2004,19 +2016,19 @@ document.addEventListener('DOMContentLoaded', () => {
             false
         );
 
-        // Worker 02 (Suzuki): Choker with 1~3m forest canopy GPS jitter
+        // Worker 02 (Suzuki): Choker working near landing / HeadSpar with 1~3m forest canopy GPS jitter
         const s3 = makeGpx('作業者_鈴木(荷掛)',
-            t => baseLat + 0.0003 * Math.cos(t / 1000),
-            t => baseLon + 0.0002 * Math.sin(t / 900),
-            t => baseElev + 15.0 + 8.0 * Math.cos(t / 1100),
+            t => headLat + 0.00010 * Math.cos(t / 1000.0),
+            t => headLon + 0.00008 * Math.sin(t / 900.0),
+            t => headElev + 2.0 + 2.5 * Math.cos(t / 1100.0),
             true, 2
         );
 
-        // Machine 02 (Processor): Heavy equipment with stable GNSS
+        // Machine 02 (Processor): Heavy equipment operating at HeadSpar landing
         const s4 = makeGpx('重機_プロセッサ02',
-            t => baseLat + 0.0002 * Math.sin(t / 1500),
-            t => baseLon + 0.0003 * Math.cos(t / 1800),
-            t => baseElev + 10.0 + 3.0 * Math.sin(t / 1200),
+            t => headLat + 0.00005 * Math.sin(t / 1500.0),
+            t => headLon + 0.00004 * Math.cos(t / 1800.0),
+            t => headElev + 1.0 + 1.5 * Math.sin(t / 1200.0),
             false
         );
 
