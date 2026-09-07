@@ -608,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         mediaFileList.innerHTML = MediaLoader.mediaList.map((m, idx) => `
-            <div class="file-item" onclick="MediaLoader.mediaList[${idx}].marker && MediaLoader.mediaList[${idx}].marker.openPopup()">
+            <div class="file-item" onclick="MediaLoader.mediaList[${idx}] && MediaLoader.mediaList[${idx}].marker && (MediaLoader.mediaList[${idx}].marker.openPopup(), state.map.panTo([MediaLoader.mediaList[${idx}].lat, MediaLoader.mediaList[${idx}].lon]))">
                 <div class="file-item-info">
                     <i class="fa-solid ${m.is360 ? 'fa-street-view text-warning' : (m.type === 'video' ? 'fa-video text-primary' : 'fa-camera text-info')}"></i>
                     <div>
@@ -616,6 +616,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="file-meta">${m.lat !== null ? `${m.lat.toFixed(4)}, ${m.lon.toFixed(4)}` : '位置不明'}</div>
                     </div>
                 </div>
+                <button class="btn btn-xs btn-outline-danger remove-btn" onclick="event.stopPropagation(); MediaLoader.removeMedia(${idx}); updateMediaUI();" title="このメディアを削除">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         `).join('');
     }
@@ -653,9 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="layer-toggle-btn ${l.visible ? 'active' : ''}" onclick="const vis = GISLayerLoader.toggleIndividualLayer(${idx}); this.classList.toggle('active', vis); this.innerHTML = vis ? '<i class=\\'fa-solid fa-eye\\'></i>' : '<i class=\\'fa-solid fa-eye-slash\\'></i>';" title="表示/非表示切替">
                         <i class="fa-solid ${l.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
                     </button>
+                    <button class="btn btn-xs btn-outline-danger remove-btn" style="padding: 2px 6px; margin-left: 4px;" onclick="event.stopPropagation(); GISLayerLoader.removeLayer(${idx}); updateGisLayerUI();" title="このレイヤを削除">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
-                ${l.type !== 'hpr' ? `
-                <!-- Compact Opacity Slider for this layer -->
+                ${l.type === 'geotiff' ? `
+                <!-- Compact Opacity Slider for GeoTIFF layer -->
                 <div class="layer-opacity-row">
                     <label>透過度:</label>
                     <input type="range" class="layer-opacity-slider" min="0" max="100" value="${currentPct}" 
@@ -675,6 +681,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileCountSpan = document.getElementById('fileCount');
         const fileListDiv = document.getElementById('fileList');
         const mergeBtn = document.getElementById('mergeGpxBtn');
+        const targetBadge = document.getElementById('smoothTargetGpxBadge');
+        const smoothBtn = document.getElementById('smoothGpxBtn');
         const targetSelect1 = document.getElementById('targetGpxSelect1');
         const targetSelect2 = document.getElementById('targetGpxSelect2');
 
@@ -682,7 +690,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (state.gpxList.length === 0) {
             fileListDiv.innerHTML = '<p class="empty-msg">GPXファイルが読み込まれていません</p>';
-            mergeBtn.disabled = true;
+            if (mergeBtn) mergeBtn.disabled = true;
+            if (targetBadge) {
+                targetBadge.textContent = 'GPX 1 未選択';
+                targetBadge.style.background = '#94a3b8';
+            }
+            if (smoothBtn) smoothBtn.disabled = true;
             targetSelect1.disabled = true;
             targetSelect1.innerHTML = '<option value="">GPX 1 を選択</option>';
             targetSelect2.disabled = true;
@@ -695,37 +708,71 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        mergeBtn.disabled = state.gpxList.length < 2;
+        if (mergeBtn) mergeBtn.disabled = state.gpxList.length < 2;
+
+        // Update Smooth Target GPX Indicator (Target is always currently selected GPX 1)
+        if (state.selectedGpxIndex1 >= 0 && state.selectedGpxIndex1 < state.gpxList.length) {
+            const selGpx1 = state.gpxList[state.selectedGpxIndex1];
+            if (targetBadge) {
+                targetBadge.textContent = `GPX 1: ${selGpx1.name}`;
+                targetBadge.title = selGpx1.name;
+                targetBadge.style.background = '#2563eb';
+            }
+            if (smoothBtn) smoothBtn.disabled = false;
+        } else {
+            if (targetBadge) {
+                targetBadge.textContent = 'GPX 1 未選択';
+                targetBadge.style.background = '#94a3b8';
+            }
+            if (smoothBtn) smoothBtn.disabled = true;
+        }
 
         fileListDiv.innerHTML = '';
         state.gpxList.forEach((gpx, idx) => {
             const isSel1 = idx === state.selectedGpxIndex1;
             const isSel2 = idx === state.selectedGpxIndex2;
             const isSelected = isSel1 || isSel2;
+            const isVisible = gpx.visible !== false;
             const badgeLabel = isSel1 ? '<span class="badge" style="background:#2563eb; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px;">GPX 1</span>' : (isSel2 ? '<span class="badge" style="background:#dc2626; color:#fff; font-size:10px; padding:1px 4px; border-radius:3px; margin-left:4px;">GPX 2</span>' : '');
 
             const item = document.createElement('div');
             item.className = `file-item ${isSelected ? 'selected' : ''}`;
             item.innerHTML = `
                 <div class="file-item-info">
-                    <span class="color-dot" style="background-color: ${gpx.color};"></span>
+                    <span class="color-dot" style="background-color: ${gpx.color}; ${!isVisible ? 'opacity: 0.35;' : ''}"></span>
                     <div>
-                        <div class="file-name" title="${gpx.fileName}">${gpx.name} ${badgeLabel}</div>
-                        <div class="file-meta">${gpx.points.length} 点</div>
+                        <div class="file-name" title="${gpx.fileName}" style="${!isVisible ? 'color: #94a3b8; text-decoration: line-through;' : ''}">${gpx.name} ${badgeLabel}</div>
+                        <div class="file-meta">${gpx.points.length} 点 ${!isVisible ? '(非表示)' : ''}</div>
                     </div>
                 </div>
-                <button class="btn btn-xs btn-outline-danger remove-btn" data-index="${idx}" title="削除">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="file-item-actions" style="display: flex; align-items: center; gap: 4px;">
+                    <button class="layer-toggle-btn ${isVisible ? 'active' : ''}" data-index="${idx}" title="${isVisible ? '非表示にする' : '表示する'}">
+                        <i class="fa-solid ${isVisible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                    </button>
+                    <button class="btn btn-xs btn-outline-danger remove-btn" data-index="${idx}" title="削除">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             `;
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.remove-btn')) {
+                if (!e.target.closest('.remove-btn') && !e.target.closest('.layer-toggle-btn')) {
                     if (state.selectedGpxIndex1 !== idx) {
                         selectGpxPair(idx, state.selectedGpxIndex2 === idx ? -1 : state.selectedGpxIndex2);
                     }
                 }
             });
             fileListDiv.appendChild(item);
+        });
+
+        fileListDiv.querySelectorAll('.layer-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const idx = parseInt(btn.getAttribute('data-index'));
+                if (!isNaN(idx) && state.gpxList[idx]) {
+                    state.gpxList[idx].visible = (state.gpxList[idx].visible === false) ? true : false;
+                    updateUI();
+                }
+            });
         });
 
         fileListDiv.querySelectorAll('.remove-btn').forEach(btn => {
@@ -765,6 +812,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         state.gpxList.forEach((gpx, idx) => {
             if (gpx.points.length < 2) return;
+            if (gpx.visible === false) {
+                gpx.trackLayer = null;
+                gpx.pointMarkers = [];
+                return;
+            }
 
             const latlngs = gpx.points.map(p => [p.lat, p.lon]);
             allLatLngs.push(...latlngs);
@@ -852,6 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function restoreAllGpxTrackColors() {
         state.gpxList.forEach((gpx, idx) => {
+            if (gpx.visible === false) return;
             const isSel1 = idx === state.selectedGpxIndex1;
             const isSel2 = idx === state.selectedGpxIndex2;
             const isSelected = isSel1 || isSel2;
@@ -880,6 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function dimNonAnalysisGpxTracks() {
         state.gpxList.forEach((gpx, idx) => {
+            if (gpx.visible === false) return;
             const isTarget = (idx === state.selectedGpxIndex1 || idx === state.selectedGpxIndex2);
             if (gpx.trackLayer) {
                 if (isTarget) {
@@ -1133,8 +1187,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // -------------------------------------------------------------
-    // 7. GPX Merge, Stats Export, PNG Export
+    // 7. GPX Tools (Collapsible Menu, Smoothing & Merge), Stats Export, PNG Export
     // -------------------------------------------------------------
+    // Toggle GPX Tools Sub-Menu
+    const toggleGpxToolsBtn = document.getElementById('toggleGpxToolsBtn');
+    const gpxToolsContent = document.getElementById('gpxToolsContent');
+    if (toggleGpxToolsBtn && gpxToolsContent) {
+        toggleGpxToolsBtn.addEventListener('click', () => {
+            const isHidden = gpxToolsContent.style.display === 'none' || getComputedStyle(gpxToolsContent).display === 'none';
+            gpxToolsContent.style.display = isHidden ? 'block' : 'none';
+            toggleGpxToolsBtn.classList.toggle('expanded', isHidden);
+        });
+    }
+
+    // GPX Smoothing Range Slider (60s〜300s)
+    const smoothSlider = document.getElementById('smoothSecSlider');
+    const smoothBadge = document.getElementById('smoothSecBadge');
+    if (smoothSlider && smoothBadge) {
+        const updateSliderBadge = () => {
+            const sec = parseInt(smoothSlider.value) || 120;
+            const minStr = (sec % 60 === 0) ? `${sec / 60}分間` : `${(sec / 60).toFixed(1)}分間`;
+            smoothBadge.textContent = `過去${sec}秒間 (${minStr})`;
+        };
+        smoothSlider.addEventListener('input', updateSliderBadge);
+        smoothSlider.addEventListener('change', updateSliderBadge);
+    }
+
+    // GPX Smoothing Button (Using currently selected GPX 1 & slider window 60s〜300s)
+    const smoothGpxBtn = document.getElementById('smoothGpxBtn');
+    if (smoothGpxBtn) {
+        smoothGpxBtn.addEventListener('click', () => {
+            if (state.selectedGpxIndex1 < 0 || state.selectedGpxIndex1 >= state.gpxList.length) {
+                alert('平均化の対象とするGPX 1をリストから選択してください。');
+                return;
+            }
+
+            const targetIdx = state.selectedGpxIndex1;
+            const targetGpx = state.gpxList[targetIdx];
+            const smoothSliderEl = document.getElementById('smoothSecSlider');
+            const sliderSec = parseInt(smoothSliderEl ? smoothSliderEl.value : '120') || 120;
+
+            try {
+                const smoothed = GPXParser.smoothTrack(targetGpx, sliderSec);
+                smoothed.color = state.colorPalette[state.gpxList.length % state.colorPalette.length];
+                state.gpxList.push(smoothed);
+                const newIdx = state.gpxList.length - 1;
+
+                updateUI();
+
+                // Automatically select original as GPX 1 and smoothed as GPX 2 for immediate side-by-side comparison & analysis
+                selectGpxPair(targetIdx, newIdx);
+            } catch (err) {
+                console.error('GPX smoothing error:', err);
+                alert(`GPXの平均化処理に失敗しました: ${err.message}`);
+            }
+        });
+    }
+
+    // Merge GPX Files
     document.getElementById('mergeGpxBtn').addEventListener('click', () => {
         if (state.gpxList.length < 2) return;
         const mergedXml = GPXParser.mergeGpxFiles(state.gpxList, 'Merged_Forestry_Tracks');
@@ -1819,20 +1929,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function loadSampleData() {
-        const baseLat = 36.593393, baseLon = 136.774920, baseElev = 320.0;
+        const baseLat = 36.592956, baseLon = 136.775092, baseElev = 135.0;
         const startDt = new Date(2026, 8, 3, 8, 30, 0);
-        const totalPoints = 300;
+        const totalPoints = 480; // 4 hours at 30-second interval (480 points)
         const stepSec = 30;
 
-        const makeGpx = (name, latFn, lonFn, elevFn) => {
+        const makeGpx = (name, latFn, lonFn, elevFn, hasGpsJitter = false, seed = 1) => {
             const pts = [];
+            const cosLat = Math.cos(baseLat * Math.PI / 180.0);
+
             for (let i = 0; i < totalPoints; i++) {
                 const t = i * stepSec;
                 const dt = new Date(startDt.getTime() + t * 1000);
+                
+                let lat = latFn(t);
+                let lon = lonFn(t);
+                let ele = elevFn(t);
+
+                // Add 1.0m to 3.0m realistic random GPS fluctuation for workers under dense forest canopy
+                if (hasGpsJitter) {
+                    const x = Math.sin(i * 12.9898 + seed * 78.233) * 43758.5453;
+                    const y = Math.cos(i * 39.3461 + seed * 11.135) * 23421.6312;
+                    const rand1 = x - Math.floor(x);
+                    const rand2 = y - Math.floor(y);
+                    
+                    const r = 1.0 + rand1 * 2.0; // 1.0m to 3.0m jitter
+                    const angle = rand2 * 2.0 * Math.PI;
+
+                    lat += (r * Math.cos(angle)) / 111000.0;
+                    lon += (r * Math.sin(angle)) / (111000.0 * cosLat);
+                    ele += (rand1 - 0.5) * 3.0; // ±1.5m vertical jitter
+                }
+
                 pts.push({
-                    lat: latFn(t),
-                    lon: lonFn(t),
-                    ele: elevFn(t),
+                    lat: lat,
+                    lon: lon,
+                    ele: ele,
                     time: dt
                 });
             }
@@ -1843,28 +1975,49 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         };
 
+        // Cableway coordinates (HeadSpar 元柱 to TailSpar 先柱)
+        const headLat = 36.5920059, headLon = 136.7749572, headElev = 160.8;
+        const tailLat = 36.5939062, tailLon = 136.7752264, tailElev = 113.1;
+
+        // Worker 01 (Tanaka): Feller with 1~3m forest canopy GPS jitter
         const s1 = makeGpx('作業者_田中(伐倒)',
             t => baseLat + 0.0010 + 0.0003 * Math.sin(t / 800) + (t > 3000 && t < 3600 ? 0.00003 : 0),
             t => baseLon + 0.0008 + 0.0002 * Math.cos(t / 700) + (t > 3000 && t < 3600 ? 0.00002 : 0),
-            t => baseElev + 55.0 + 15.0 * Math.sin(t / 900)
+            t => baseElev + 55.0 + 15.0 * Math.sin(t / 900),
+            true, 1
         );
 
-        const s2 = makeGpx('重機_フォワーダ01',
-            t => baseLat + 0.0010 * ((Math.sin(t / 600) + 1) / 2),
-            t => baseLon + 0.0008 * ((Math.sin(t / 600) + 1) / 2),
-            t => baseElev + 60.0 * ((Math.sin(t / 600) + 1) / 2)
+        // Machine 01 (Tower Yarder / Carriage): Shuttles along MainCableLine between HeadSpar and TailSpar
+        const s2 = makeGpx('重機_タワーヤーダ01',
+            t => {
+                const p = (Math.sin(t / 600.0) + 1.0) / 2.0;
+                return headLat + (tailLat - headLat) * p;
+            },
+            t => {
+                const p = (Math.sin(t / 600.0) + 1.0) / 2.0;
+                return headLon + (tailLon - headLon) * p;
+            },
+            t => {
+                const p = (Math.sin(t / 600.0) + 1.0) / 2.0;
+                return headElev + (tailElev - headElev) * p - 3.0 * Math.sin(p * Math.PI);
+            },
+            false
         );
 
+        // Worker 02 (Suzuki): Choker with 1~3m forest canopy GPS jitter
         const s3 = makeGpx('作業者_鈴木(荷掛)',
             t => baseLat + 0.0003 * Math.cos(t / 1000),
             t => baseLon + 0.0002 * Math.sin(t / 900),
-            t => baseElev + 15.0 + 8.0 * Math.cos(t / 1100)
+            t => baseElev + 15.0 + 8.0 * Math.cos(t / 1100),
+            true, 2
         );
 
+        // Machine 02 (Processor): Heavy equipment with stable GNSS
         const s4 = makeGpx('重機_プロセッサ02',
             t => baseLat + 0.0002 * Math.sin(t / 1500),
             t => baseLon + 0.0003 * Math.cos(t / 1800),
-            t => baseElev + 10.0 + 3.0 * Math.sin(t / 1200)
+            t => baseElev + 10.0 + 3.0 * Math.sin(t / 1200),
+            false
         );
 
         state.gpxList = [s1, s2, s3, s4];

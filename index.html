@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>林業GPX解析・離隔距離計測システム (Leaflet版)</title>
-    <!-- Leaflet CSS -->
+    <!-- Leaflet JS & CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <!-- Pannellum (360 Photo Viewer) CSS -->
@@ -17,10 +18,10 @@
     <!-- Pannellum (360 Photo Viewer) JS -->
     <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
     
-    <!-- GeoTIFF & Raster Support -->
-    <script src="https://cdn.jsdelivr.net/npm/geotiff"></script>
-    <script src="https://unpkg.com/georaster"></script>
-    <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+    <!-- GeoTIFF & Raster Support (Browser Bundles) -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet@3.8.0/dist/georaster-layer-for-leaflet.min.js"></script>
     <!-- toGeoJSON (KML Parser) -->
     <script src="https://unpkg.com/@tmcw/togeojson"></script>
     <!-- html2canvas (Map snapshot export) -->
@@ -61,12 +62,58 @@
 
                         <div class="file-list-header">
                             <h4>読み込み済みGPX (<span id="fileCount">0</span>)</h4>
-                            <button id="mergeGpxBtn" class="btn btn-success btn-xs" title="読み込んだ全GPXを1つにまとめてダウンロード" disabled>
-                                <i class="fa-solid fa-code-merge"></i> 結合出力
-                            </button>
                         </div>
                         <div id="fileList" class="file-list">
                             <p class="empty-msg">GPX未読込</p>
+                        </div>
+
+                        <!-- GPX Tools Sub-Menu (Collapsible: Smoothing & Merging) -->
+                        <div class="gpx-tools-collapsible">
+                            <button type="button" id="toggleGpxToolsBtn" class="gpx-tools-toggle-btn" title="GPX詳細処理メニュー（平均化・結合）の展開/折りたたみ">
+                                <i class="fa-solid fa-caret-right toggle-icon"></i>
+                                <span>GPX処理ツール（平均化・結合）</span>
+                            </button>
+                            <div id="gpxToolsContent" class="gpx-tools-content" style="display: none;">
+                                <!-- 1. Moving Average Smoothing (10s〜120s前平均) -->
+                                <div class="gpx-tool-card mb-2">
+                                    <div class="gpx-tool-header">
+                                        <i class="fa-solid fa-wave-square text-primary"></i> <b>GPX軌跡の平均化 (移動平均)</b>
+                                    </div>
+                                    <p class="gpx-tool-desc">リストで選択中の <b>GPX 1</b> の各点座標を過去の平均座標に平滑化し、新規ログとしてリストに追加します。</p>
+                                    <div class="smooth-target-indicator mb-2" style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; background: #ffffff; padding: 4px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                        <span style="color: #475569; font-weight: 600;">対象GPX 1:</span>
+                                        <span id="smoothTargetGpxBadge" class="badge" style="background: #2563eb; color: #fff; font-size: 10.5px; padding: 2px 6px; border-radius: 3px; max-width: 175px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">GPX 1 未選択</span>
+                                    </div>
+                                    <button id="smoothGpxBtn" class="btn btn-primary btn-xs btn-block" disabled title="選択中GPX 1の各点座標を平均値で平滑化したGPXをリストに追加">
+                                        <i class="fa-solid fa-calculator"></i> 平均化してリストに追加
+                                    </button>
+
+                                    <!-- Smoothing Range Slider (60s〜300s) -->
+                                    <div class="smooth-slider-container mt-2" style="background: #ffffff; padding: 6px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 2px;">
+                                            <span style="color: #334155; font-weight: 600;">平均化範囲:</span>
+                                            <span id="smoothSecBadge" class="badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-size: 10.5px; padding: 1px 5px; font-weight: 700;">過去120秒間 (2分間)</span>
+                                        </div>
+                                        <input type="range" id="smoothSecSlider" min="60" max="300" step="30" value="120" style="width: 100%; cursor: pointer; accent-color: #2563eb;">
+                                        <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #64748b; margin-top: 1px;">
+                                            <span>60秒 (1分)</span>
+                                            <span>180秒 (3分)</span>
+                                            <span>300秒 (5分)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2. Merge GPX Files -->
+                                <div class="gpx-tool-card">
+                                    <div class="gpx-tool-header">
+                                        <i class="fa-solid fa-code-merge text-success"></i> <b>複数GPXの一括結合</b>
+                                    </div>
+                                    <p class="gpx-tool-desc">読み込まれている全GPXトラックを1つのGPXファイルに統合してダウンロードします。</p>
+                                    <button id="mergeGpxBtn" class="btn btn-success btn-xs btn-block" title="読み込んだ全GPXを1つにまとめてダウンロード" disabled>
+                                        <i class="fa-solid fa-download"></i> 結合GPXを出力
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Media Files List -->
@@ -534,8 +581,6 @@
         </div>
     </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Application Scripts -->
     <script src="js/gpx_parser.js"></script>
     <script src="js/stats.js"></script>

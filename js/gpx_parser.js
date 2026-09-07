@@ -105,5 +105,80 @@ const GPXParser = {
 
         xml += `</gpx>`;
         return xml;
+    },
+
+    /**
+     * Smooth GPX Track Points by averaging coordinates over preceding window (past W seconds, e.g. 60s to 300s)
+     */
+    smoothTrack: function(gpx, windowSec = 120) {
+        if (!gpx || !gpx.points || gpx.points.length === 0) {
+            throw new Error('平滑化対象のGPXポイントデータが存在しません');
+        }
+
+        const smoothedPoints = [];
+        const pts = gpx.points;
+        const windowMs = windowSec * 1000;
+
+        for (let i = 0; i < pts.length; i++) {
+            const currentPt = pts[i];
+
+            if (!currentPt.time) {
+                // Fallback if no timestamps available: average over past index window (assume ~30s interval)
+                const windowCount = Math.max(1, Math.round(windowSec / 30));
+                const startIdx = Math.max(0, i - windowCount + 1);
+                const windowPts = pts.slice(startIdx, i + 1);
+
+                const avgLat = windowPts.reduce((sum, p) => sum + p.lat, 0) / windowPts.length;
+                const avgLon = windowPts.reduce((sum, p) => sum + p.lon, 0) / windowPts.length;
+                const avgEle = windowPts.reduce((sum, p) => sum + (p.ele || 0), 0) / windowPts.length;
+
+                smoothedPoints.push({
+                    lat: avgLat,
+                    lon: avgLon,
+                    ele: avgEle,
+                    time: null
+                });
+                continue;
+            }
+
+            const currTimeMs = currentPt.time.getTime();
+            const minTimeMs = currTimeMs - windowMs;
+
+            // Find all points in [currTime - windowSec, currTime]
+            const windowPts = [];
+            for (let j = 0; j <= i; j++) {
+                if (pts[j].time) {
+                    const t = pts[j].time.getTime();
+                    if (t >= minTimeMs && t <= currTimeMs) {
+                        windowPts.push(pts[j]);
+                    }
+                }
+            }
+
+            if (windowPts.length === 0) {
+                windowPts.push(currentPt);
+            }
+
+            const avgLat = windowPts.reduce((sum, p) => sum + p.lat, 0) / windowPts.length;
+            const avgLon = windowPts.reduce((sum, p) => sum + p.lon, 0) / windowPts.length;
+            const avgEle = windowPts.reduce((sum, p) => sum + (p.ele || 0), 0) / windowPts.length;
+
+            smoothedPoints.push({
+                lat: avgLat,
+                lon: avgLon,
+                ele: avgEle,
+                time: new Date(currentPt.time.getTime())
+            });
+        }
+
+        const newName = `${gpx.name} (平均化)`;
+        const newFileName = gpx.fileName.replace(/\.gpx$/i, '') + ' (平均化).gpx';
+
+        return {
+            fileName: newFileName,
+            name: newName,
+            points: smoothedPoints,
+            isSmoothed: true
+        };
     }
 };

@@ -306,11 +306,14 @@ const GISLayerLoader = {
         reader.onload = (e) => {
             const arrayBuffer = e.target.result;
 
-            if (window.parseGeoraster && window.GeoRasterLayer) {
-                parseGeoraster(arrayBuffer).then(georaster => {
+            const parseFn = window.parseGeoraster || (typeof parseGeoraster !== 'undefined' ? parseGeoraster : null);
+            const LayerClass = window.GeoRasterLayer || (window.L && window.L.GeoRasterLayer) || (typeof GeoRasterLayer !== 'undefined' ? GeoRasterLayer : null);
+
+            if (parseFn && LayerClass) {
+                parseFn(arrayBuffer).then(georaster => {
                     const renderResolution = isLarge ? 64 : 256;
 
-                    const layer = new GeoRasterLayer({
+                    const layer = new LayerClass({
                         georaster: georaster,
                         opacity: this.geotiffOpacity,
                         resolution: renderResolution,
@@ -400,6 +403,30 @@ const GISLayerLoader = {
     },
 
     /**
+     * Remove Individual Layer by Index in layerList
+     */
+    removeLayer: function(index) {
+        if (index < 0 || index >= this.layerList.length) return;
+        const item = this.layerList[index];
+        if (item.layer) {
+            const targetGroup = item.type === 'geotiff' 
+                ? this.geotiffLayerGroup 
+                : (item.type === 'hpr' && this.treePointLayerGroup ? this.treePointLayerGroup : this.polygonLayerGroup);
+            if (targetGroup && targetGroup.hasLayer(item.layer)) {
+                targetGroup.removeLayer(item.layer);
+            }
+        }
+        if (item.type === 'polygon') {
+            this.polygonLayers = this.polygonLayers.filter(l => l !== item.layer);
+        } else if (item.type === 'geotiff') {
+            this.geotiffLayers = this.geotiffLayers.filter(l => l !== item.layer);
+        } else if (item.type === 'hpr') {
+            this.treePointLayers = this.treePointLayers.filter(l => l !== item.layer);
+        }
+        this.layerList.splice(index, 1);
+    },
+
+    /**
      * Set Individual Layer Opacity (0.0 to 1.0)
      */
     setIndividualLayerOpacity: function(index, opacity) {
@@ -452,74 +479,88 @@ const GISLayerLoader = {
         this.treePointLayers = [];
         this.layerList = [];
 
-        // Sample Forestry Compartments (林班 & 施業区)
+        // Sample Forestry Compartments (林班 & 施業区 - ユーザー提供ポリゴン)
         const sampleGeoJson = {
             type: 'FeatureCollection',
+            name: 'サンプル林班ポリゴン',
             features: [
                 {
                     type: 'Feature',
                     properties: {
-                        name: '第102林班 (スギ・ヒノキ人工林)',
+                        name: '第102林班 (スギ・ヒノキ施業区域)',
                         林班番号: '102林班',
-                        面積: '4.8 ha',
-                        主要樹種: 'スギ 45年生',
-                        施業種別: '主伐・搬出間伐'
+                        施業種別: '間伐・主伐施業区',
+                        主要樹種: 'スギ・ヒノキ人工林',
+                        面積: '約 2.8 ha'
                     },
                     geometry: {
                         type: 'Polygon',
-                        coordinates: [[
-                            [baseLon - 0.003, baseLat - 0.002],
-                            [baseLon + 0.002, baseLat - 0.002],
-                            [baseLon + 0.003, baseLat + 0.002],
-                            [baseLon - 0.001, baseLat + 0.003],
-                            [baseLon - 0.003, baseLat - 0.002]
-                        ]]
-                    }
-                },
-                {
-                    type: 'Feature',
-                    properties: {
-                        name: '第103林班 伐採予定区 (保安林隣接)',
-                        林班番号: '103林班イ小班',
-                        面積: '2.1 ha',
-                        主要樹種: 'ヒノキ 50年生',
-                        施業種別: '間伐 (列状間伐)'
-                    },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [baseLon + 0.0005, baseLat + 0.0005],
-                            [baseLon + 0.0025, baseLat + 0.001],
-                            [baseLon + 0.0028, baseLat + 0.003],
-                            [baseLon + 0.0008, baseLat + 0.0025],
-                            [baseLon + 0.0005, baseLat + 0.0005]
-                        ]]
+                        coordinates: [
+                            [
+                                [136.775027, 36.592277],
+                                [136.775381, 36.592768],
+                                [136.775756, 36.593139],
+                                [136.775885, 36.593475],
+                                [136.775647, 36.593658],
+                                [136.775449, 36.593555],
+                                [136.775363, 36.593426],
+                                [136.775293, 36.593546],
+                                [136.775444, 36.593632],
+                                [136.775685, 36.593749],
+                                [136.775782, 36.593964],
+                                [136.775942, 36.594149],
+                                [136.775701, 36.594434],
+                                [136.77547, 36.594554],
+                                [136.775175, 36.594503],
+                                [136.77509, 36.59436],
+                                [136.775025, 36.594037],
+                                [136.775004, 36.59393],
+                                [136.774837, 36.593844],
+                                [136.774623, 36.593749],
+                                [136.774505, 36.593714],
+                                [136.774226, 36.593753],
+                                [136.774001, 36.593744],
+                                [136.773925, 36.593641],
+                                [136.77385, 36.593469],
+                                [136.77392, 36.593318],
+                                [136.773974, 36.593193],
+                                [136.774124, 36.593111],
+                                [136.774237, 36.592999],
+                                [136.774247, 36.592836],
+                                [136.77436, 36.592633],
+                                [136.774508, 36.592508],
+                                [136.774578, 36.592427],
+                                [136.774744, 36.592323],
+                                [136.774921, 36.592271],
+                                [136.775027, 36.592277]
+                            ]
+                        ]
                     }
                 }
             ]
         };
 
-        this.addPolygonLayer(sampleGeoJson, 'サンプル林班ポリゴン (102林班・103林班)');
+        this.addPolygonLayer(sampleGeoJson, 'サンプル林班ポリゴン (102林班)');
 
-        // 10 Sample Sugi Trees inside 102林班 polygon (StanForD 2010 HPR Data)
+        // 10 Sample Sugi Trees randomly placed inside the 102林班 polygon (StanForD 2010 HPR Data)
         const sampleHprTrees = [
-            { stem: 1, dbh: 34.5, sob: 0.68, sub: 0.59, alt: 355.0, dLon: -0.0005, dLat: 0.0002, time: '09:12', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 24, v: 0.42 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 18, v: 0.26 }] },
-            { stem: 2, dbh: 28.2, sob: 0.46, sub: 0.40, alt: 358.0, dLon: 0.0002, dLat: 0.0004, time: '09:23', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 20, v: 0.30 }, { k: 2, p: '小目丸太 (2.0m)', l: 2.0, d: 16, v: 0.16 }] },
-            { stem: 3, dbh: 38.0, sob: 0.92, sub: 0.80, alt: 360.0, dLon: 0.0006, dLat: 0.0005, time: '09:36', logs: [{ k: 1, p: '大径柱材 (4.0m)', l: 4.0, d: 28, v: 0.54 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 22, v: 0.28 }, { k: 3, p: '原料材 (2.0m)', l: 2.0, d: 14, v: 0.10 }] },
-            { stem: 4, dbh: 26.4, sob: 0.38, sub: 0.33, alt: 362.0, dLon: -0.0008, dLat: 0.0006, time: '09:48', logs: [{ k: 1, p: '間伐小径材 (3.0m)', l: 3.0, d: 18, v: 0.24 }, { k: 2, p: 'バイオマス原料 (2.0m)', l: 2.0, d: 14, v: 0.14 }] },
-            { stem: 5, dbh: 32.8, sob: 0.62, sub: 0.54, alt: 365.0, dLon: 0.0001, dLat: 0.0008, time: '10:02', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 22, v: 0.38 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 18, v: 0.24 }] },
-            { stem: 6, dbh: 42.1, sob: 1.15, sub: 1.00, alt: 368.0, dLon: 0.0009, dLat: 0.0010, time: '10:15', logs: [{ k: 1, p: '大径柱材 (4.0m)', l: 4.0, d: 32, v: 0.68 }, { k: 2, p: '大径丸太 (3.0m)', l: 3.0, d: 26, v: 0.35 }, { k: 3, p: 'パルプ材 (2.0m)', l: 2.0, d: 16, v: 0.12 }] },
-            { stem: 7, dbh: 30.6, sob: 0.55, sub: 0.48, alt: 370.0, dLon: -0.0004, dLat: 0.0012, time: '10:28', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 22, v: 0.36 }, { k: 2, p: '小目丸太 (2.5m)', l: 2.5, d: 16, v: 0.19 }] },
-            { stem: 8, dbh: 25.0, sob: 0.34, sub: 0.30, alt: 373.0, dLon: 0.0004, dLat: 0.0014, time: '10:39', logs: [{ k: 1, p: '小径柱材 (3.0m)', l: 3.0, d: 18, v: 0.22 }, { k: 2, p: '原料材 (2.0m)', l: 2.0, d: 12, v: 0.12 }] },
-            { stem: 9, dbh: 36.2, sob: 0.82, sub: 0.71, alt: 375.0, dLon: 0.0008, dLat: 0.0016, time: '10:51', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 26, v: 0.50 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 20, v: 0.32 }] },
-            { stem: 10, dbh: 29.8, sob: 0.51, sub: 0.44, alt: 378.0, dLon: -0.0001, dLat: 0.0018, time: '11:05', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 20, v: 0.32 }, { k: 2, p: '小目丸太 (2.5m)', l: 2.5, d: 16, v: 0.19 }] }
+            { stem: 1, dbh: 34.5, sob: 0.68, sub: 0.59, alt: 346.2, lon: 136.774562, lat: 36.592626, time: '09:12', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 24, v: 0.42 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 18, v: 0.26 }] },
+            { stem: 2, dbh: 28.2, sob: 0.46, sub: 0.40, alt: 348.4, lon: 136.774624, lat: 36.592749, time: '09:23', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 20, v: 0.30 }, { k: 2, p: '小目丸太 (2.0m)', l: 2.0, d: 16, v: 0.16 }] },
+            { stem: 3, dbh: 38.0, sob: 0.92, sub: 0.80, alt: 348.9, lon: 136.774425, lat: 36.592781, time: '09:36', logs: [{ k: 1, p: '大径柱材 (4.0m)', l: 4.0, d: 28, v: 0.54 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 22, v: 0.28 }, { k: 3, p: '原料材 (2.0m)', l: 2.0, d: 14, v: 0.10 }] },
+            { stem: 4, dbh: 26.4, sob: 0.38, sub: 0.33, alt: 354.6, lon: 136.775180, lat: 36.593104, time: '09:48', logs: [{ k: 1, p: '間伐小径材 (3.0m)', l: 3.0, d: 18, v: 0.24 }, { k: 2, p: 'バイオマス原料 (2.0m)', l: 2.0, d: 14, v: 0.14 }] },
+            { stem: 5, dbh: 32.8, sob: 0.62, sub: 0.54, alt: 360.2, lon: 136.774307, lat: 36.593425, time: '10:02', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 22, v: 0.38 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 18, v: 0.24 }] },
+            { stem: 6, dbh: 42.1, sob: 1.15, sub: 1.00, alt: 362.1, lon: 136.774642, lat: 36.593531, time: '10:15', logs: [{ k: 1, p: '大径柱材 (4.0m)', l: 4.0, d: 32, v: 0.68 }, { k: 2, p: '大径丸太 (3.0m)', l: 3.0, d: 26, v: 0.35 }, { k: 3, p: 'パルプ材 (2.0m)', l: 2.0, d: 16, v: 0.12 }] },
+            { stem: 7, dbh: 30.6, sob: 0.55, sub: 0.48, alt: 363.6, lon: 136.774311, lat: 36.593616, time: '10:28', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 22, v: 0.36 }, { k: 2, p: '小目丸太 (2.5m)', l: 2.5, d: 16, v: 0.19 }] },
+            { stem: 8, dbh: 25.0, sob: 0.34, sub: 0.30, alt: 367.1, lon: 136.775391, lat: 36.593816, time: '10:39', logs: [{ k: 1, p: '小径柱材 (3.0m)', l: 3.0, d: 18, v: 0.22 }, { k: 2, p: '原料材 (2.0m)', l: 2.0, d: 12, v: 0.12 }] },
+            { stem: 9, dbh: 36.2, sob: 0.82, sub: 0.71, alt: 367.9, lon: 136.775536, lat: 36.593865, time: '10:51', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 26, v: 0.50 }, { k: 2, p: '中目丸太 (3.0m)', l: 3.0, d: 20, v: 0.32 }] },
+            { stem: 10, dbh: 29.8, sob: 0.51, sub: 0.44, alt: 369.2, lon: 136.775539, lat: 36.593937, time: '11:05', logs: [{ k: 1, p: '柱材 (4.0m)', l: 4.0, d: 20, v: 0.32 }, { k: 2, p: '小目丸太 (2.5m)', l: 2.5, d: 16, v: 0.19 }] }
         ];
 
         const sampleHprFeatures = sampleHprTrees.map(t => ({
             type: 'Feature',
             geometry: {
                 type: 'Point',
-                coordinates: [baseLon + t.dLon, baseLat + t.dLat, t.alt]
+                coordinates: [t.lon !== undefined ? t.lon : (baseLon + t.dLon), t.lat !== undefined ? t.lat : (baseLat + t.dLat), t.alt]
             },
             properties: {
                 stemKey: t.stem,

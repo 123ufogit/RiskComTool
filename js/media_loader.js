@@ -229,6 +229,21 @@ const MediaLoader = {
         this.mediaList.push(item);
     },
 
+    /**
+     * Remove Individual Media Item by Index in mediaList
+     */
+    removeMedia: function(index) {
+        if (index < 0 || index >= this.mediaList.length) return;
+        const item = this.mediaList[index];
+        if (item.marker && this.mediaLayerGroup) {
+            this.mediaLayerGroup.removeLayer(item.marker);
+        }
+        if (item.url && item.url.startsWith('blob:')) {
+            URL.revokeObjectURL(item.url);
+        }
+        this.mediaList.splice(index, 1);
+    },
+
     openFullImage: function(url) {
         window.open(url, '_blank');
     },
